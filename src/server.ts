@@ -7,7 +7,7 @@ import {
 } from './palette.js';
 import { ColorType, FORMATS, Format, exportText } from './exports.js';
 
-export const VERSION = '0.1.1';
+export const VERSION = '0.1.2';
 export const REMOTE_URL = 'https://mcp.grayscale.design/mcp';
 export const TERMS_URL = 'https://github.com/truefrontier/grayscale-mcp#hosted-service';
 

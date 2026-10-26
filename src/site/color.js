@@ -1,4 +1,4 @@
-// Vendored verbatim from truefrontier/grayscale.design resources/js/utils/color.js (commit a95fde7).
+// Vendored verbatim from truefrontier/grayscale.design resources/js/utils/color.js (PR #18: clean-room colorName).
 // Do not edit: the MCP must match the site exactly. Re-copy when the site changes.
 export function hexToRGB(hex) {
   let r = 0;
@@ -216,42 +216,37 @@ export function generateFalseColorGrayscale(r, g, b, desiredHue, desiredSaturati
   };
 }
 
-// @see: https://stackoverflow.com/a/55600168/622287
-export function colorName(h, s, l) {
-  l = Math.floor(l);
-  s = Math.floor(s);
-  h = Math.floor(h);
-  if (s <= 10 && l >= 90) {
-    return 'white';
-  } else if ((s <= 10 && l <= 70) || s === 0) {
-    return 'gray';
-  } else if (l <= 15) {
-    return 'black';
-  } else if ((h >= 0 && h <= 15) || h >= 346) {
-    return 'red';
-  } else if (h >= 16 && h <= 35) {
-    if (s < 90) {
-      return 'brown';
-    } else {
-      return 'orange';
-    }
-  } else if (h >= 36 && h <= 54) {
-    if (s < 90) {
-      return 'brown';
-    } else {
-      return 'yellow';
-    }
-  } else if (h >= 55 && h <= 155) {
-    return 'green';
-  } else if (h >= 156 && h <= 190) {
-    return 'teal';
-  } else if (h >= 191 && h <= 260) {
-    return 'blue';
-  } else if (h >= 261 && h <= 290) {
-    return 'purple';
-  } else if (h >= 291 && h <= 345) {
-    return 'pink';
+// Names a color from its HSL values with one of 12 basic color words.
+// Fresh clean-room implementation (2026), written only from a behavioral spec of the earlier
+// function; see https://github.com/truefrontier/grayscale-mcp/blob/main/docs/colorName-spec.md
+const HUE_FAMILIES = [
+  [346, 'red'],
+  [291, 'pink'],
+  [261, 'purple'],
+  [191, 'blue'],
+  [156, 'teal'],
+  [55, 'green'],
+  [16, 'warm'],
+  [0, 'red'],
+];
+
+function familyForHue(hue, sat) {
+  const family = HUE_FAMILIES.find(([start]) => hue >= start);
+  if (!family) return undefined;
+  if (family[1] !== 'warm') return family[1];
+  if (sat < 90) return 'brown';
+  return hue < 36 ? 'orange' : 'yellow';
+}
+
+export function colorName(hue, sat, light) {
+  if (sat < 11) {
+    if (light >= 90) return 'white';
+    if (light < 71) return 'gray';
+    const nearlyNeutral = sat >= 0 && sat < 1;
+    return nearlyNeutral ? 'gray' : familyForHue(hue, sat);
   }
+  if (light < 16) return 'black';
+  return familyForHue(hue, sat);
 }
 
 /**

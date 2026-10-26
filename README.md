@@ -79,7 +79,9 @@ The endpoint at `https://mcp.grayscale.design/mcp` (and `https://grayscale-mcp.f
 
 ## License
 
-No license has been chosen yet; see [THIRD_PARTY.md](THIRD_PARTY.md) for the third-party code in `src/site/color.js`. The grayscale.design and True Frontier names and logos aren't covered by any license to this code.
+[MIT](LICENSE), Copyright (c) 2026 Brandname Maker LLC d/b/a True Frontier. Credits for the color formulas are in [THIRD_PARTY.md](THIRD_PARTY.md).
+
+The grayscale.design and True Frontier names and logos aren't covered by this license.
 
 ## Develop
 
