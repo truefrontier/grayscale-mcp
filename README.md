@@ -6,7 +6,7 @@ The math is the site's own code. `src/site/color.js` is an unedited copy of the 
 
 The server is read-only. It needs no account and no secrets, stores nothing, and never calls grayscale.design.
 
-**Remote endpoint:** `https://grayscale-mcp.fly.dev/mcp` (Streamable HTTP, stateless, no auth, 120 requests a minute per IP)
+**Remote endpoint:** `https://mcp.grayscale.design/mcp` (Streamable HTTP, stateless, no auth, 120 requests a minute per IP). `https://grayscale-mcp.fly.dev/mcp` serves the same app. Use of the hosted endpoint is covered by [Hosted service](#hosted-service).
 
 ## Install
 
@@ -14,7 +14,7 @@ The server is read-only. It needs no account and no secrets, stores nothing, and
 
 ```sh
 # remote (nothing to install)
-claude mcp add --transport http grayscale-design https://grayscale-mcp.fly.dev/mcp
+claude mcp add --transport http grayscale-design https://mcp.grayscale.design/mcp
 
 # or local stdio
 git clone https://github.com/truefrontier/grayscale-mcp && cd grayscale-mcp && npm install && npm run build
@@ -28,20 +28,20 @@ Add this to `~/.cursor/mcp.json` (or a project's `.cursor/mcp.json`):
 ```json
 {
   "mcpServers": {
-    "grayscale-design": { "url": "https://grayscale-mcp.fly.dev/mcp" }
+    "grayscale-design": { "url": "https://mcp.grayscale.design/mcp" }
   }
 }
 ```
 
 For local stdio, use `{ "command": "node", "args": ["/absolute/path/to/grayscale-mcp/dist/stdio.js"] }`.
 
-Grok Bot uses the same thing. Add a custom MCP connector with the URL `https://grayscale-mcp.fly.dev/mcp` and no auth.
+Grok Bot uses the same thing. Add a custom MCP connector with the URL `https://mcp.grayscale.design/mcp` and no auth.
 
 ### Any other MCP client
 
-- Streamable HTTP: `POST https://grayscale-mcp.fly.dev/mcp`. No auth; send `Accept: application/json, text/event-stream`.
+- Streamable HTTP: `POST https://mcp.grayscale.design/mcp`. No auth; send `Accept: application/json, text/event-stream`.
 - stdio: `node dist/stdio.js`.
-- Clients that only support stdio: `npx -y mcp-remote https://grayscale-mcp.fly.dev/mcp`.
+- Clients that only support stdio: `npx -y mcp-remote https://mcp.grayscale.design/mcp`.
 
 ## Tools
 
@@ -68,6 +68,18 @@ These are replicated so the output matches the site exactly:
 - With Radix + OKLCH, the export stops after the header (the site throws inside a try/catch).
 - Stylus shade labels are 100, 200, 300… whatever the count (the site passes a boolean as the count).
 - When a share link has an unnamed palette before a named one, the site moves the name onto the wrong palette on load. `generate_palette({ share_url })` does the same.
+
+## Hosted service
+
+The endpoint at `https://mcp.grayscale.design/mcp` (and `https://grayscale-mcp.fly.dev/mcp`) is provided free and as-is, with no guarantee of uptime or accuracy. It may change, be rate-limited, or shut down at any time without notice.
+
+**Acceptable use.** Don't abuse or overload the service, don't try to get around the rate limit, and don't use it for anything illegal. We may block traffic that does.
+
+**Data.** The server doesn't need an account, stores nothing you send, and doesn't write request or IP logs. To enforce the rate limit it keeps each client IP address in memory for about a minute, then drops it. The service is hosted on [Fly.io](https://fly.io), which routes the traffic and handles it under its own [privacy policy](https://fly.io/legal/privacy-policy). We don't sell any data.
+
+## License
+
+No license has been chosen yet; see [THIRD_PARTY.md](THIRD_PARTY.md) for the third-party code in `src/site/color.js`. The grayscale.design and True Frontier names and logos aren't covered by any license to this code.
 
 ## Develop
 

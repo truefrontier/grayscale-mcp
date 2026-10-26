@@ -1,7 +1,7 @@
 // Remote MCP over Streamable HTTP (stateless, read-only, no auth). POST /mcp.
 import { createServer as createHttpServer, IncomingMessage, ServerResponse } from 'node:http';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { createServer, VERSION } from './server.js';
+import { createServer, VERSION, REMOTE_URL, TERMS_URL } from './server.js';
 
 const PORT = Number(process.env.PORT ?? 8080);
 const LIMIT = Number(process.env.RATE_LIMIT_PER_MIN ?? 120); // requests per IP per minute
@@ -55,9 +55,11 @@ createHttpServer(async (req, res) => {
     return send(res, 200, {
       name: 'grayscale.design MCP server',
       version: VERSION,
-      mcp_endpoint: '/mcp',
+      mcp_endpoint: REMOTE_URL,
       transport: 'streamable-http',
       site: 'https://grayscale.design',
+      source: 'https://github.com/truefrontier/grayscale-mcp',
+      terms: TERMS_URL,
       tools: ['generate_palette', 'export_palette', 'luminance_scale', 'color_info', 'adjust_shade', 'suggest_colors', 'false_color'],
     });
   }

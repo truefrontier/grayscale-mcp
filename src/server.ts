@@ -7,7 +7,9 @@ import {
 } from './palette.js';
 import { ColorType, FORMATS, Format, exportText } from './exports.js';
 
-export const VERSION = '0.1.0';
+export const VERSION = '0.1.1';
+export const REMOTE_URL = 'https://mcp.grayscale.design/mcp';
+export const TERMS_URL = 'https://github.com/truefrontier/grayscale-mcp#hosted-service';
 
 const colorSchema = z.object({
   color: z.string().describe('Base color: hex (#3b82f6, 3b82f6, #38f), rgb(59, 130, 246) or hsl(217, 91%, 60%). Parsed the way the site parses a paste.'),
@@ -77,10 +79,10 @@ const wrap = <A,>(fn: (a: A) => unknown) => async (a: A) => {
 
 export function createServer() {
   const server = new McpServer(
-    { name: 'grayscale-design', version: VERSION },
+    { name: 'grayscale-design', title: 'grayscale.design', version: VERSION, websiteUrl: 'https://grayscale.design' },
     {
       instructions:
-        'grayscale.design builds color palettes by luminance (color value) instead of HSL lightness: every palette shares one grayscale luminance scale, so shade 500 of every color has the same contrast. Use generate_palette for swatches, export_palette for Tailwind/CSS/SCSS/LESS/Stylus/Radix/SVG/dark-mode code, and color_info for luminance and contrast. All tools are read-only and run the site\'s own math locally.',
+        'grayscale.design builds color palettes by luminance (color value) instead of HSL lightness: every palette shares one grayscale luminance scale, so shade 500 of every color has the same contrast. Use generate_palette for swatches, export_palette for Tailwind/CSS/SCSS/LESS/Stylus/Radix/SVG/dark-mode code, and color_info for luminance and contrast. All tools are read-only and run the site\'s own math locally. Hosted service terms (as-is, no guarantees, acceptable use, data): ' + TERMS_URL,
     },
   );
   const ro = { readOnlyHint: true, openWorldHint: false, idempotentHint: true };

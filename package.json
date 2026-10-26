@@ -1,6 +1,6 @@
 {
   "name": "grayscale-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "repository": "github:truefrontier/grayscale-mcp",
   "description": "MCP server for grayscale.design: luminance-based color palettes for Tailwind CSS",
