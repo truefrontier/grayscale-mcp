@@ -41,7 +41,11 @@ function resolveLums(a: { preset?: PresetName; count?: number; lums?: number[] }
 function resolveState(a: any, radix = false): State {
   if (a.share_url) {
     const st = parseShareUrl(a.share_url);
-    return { ...st, radix };
+    // A share link skips the input schema, so hold it to the same limits as typed input.
+    if (st.lums.length < 3 || st.lums.length > 20 || !st.lums.every((v) => v >= 0 && v <= 100)) {
+      throw new Error('share_url lums must be 3-20 numbers from 0 to 100.');
+    }
+    return { ...st, palettes: st.palettes.map((p) => ({ ...p, hex: parseColorInput(p.hex) })), radix };
   }
   return {
     lums: resolveLums(a),
@@ -62,11 +66,12 @@ function contrast(l1: number, l2: number) {
 
 const ok = (data: unknown) => ({ content: [{ type: 'text' as const, text: typeof data === 'string' ? data : JSON.stringify(data, null, 2) }] });
 // The site's paste parser is lenient (it strips non-hex chars). Agents get an error instead of a junk color.
+// Lowercase like the site's color picker, so a locked color matches its generated swatch (Tailwind DEFAULT).
 function parseColorInput(txt: string): string {
   const input = String(txt).trim();
   const recognized = /^#?([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(input) || /(\d+)\s*[,\s]\s*(\d+)(%?)\s*[,\s]\s*(\d+)(%?)/.test(input);
   if (!recognized) throw new Error(`Could not read "${txt}" as a color. Use hex (#3b82f6, 3b82f6, #38f), rgb(59, 130, 246) or hsl(217, 91%, 60%).`);
-  return parseLoose(input);
+  return parseLoose(input).toLowerCase();
 }
 const fail = (e: unknown) => ({ isError: true, content: [{ type: 'text' as const, text: String((e as Error)?.message ?? e) }] });
 const wrap = <A,>(fn: (a: A) => unknown) => async (a: A) => {

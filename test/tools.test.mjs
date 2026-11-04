@@ -168,6 +168,24 @@ test('lock snaps the nearest grayscale shade to the color and adds a Tailwind DE
   assert.equal(blue.DEFAULT, '#3b82f6');
 });
 
+test('uppercase hex is read as lowercase, so a locked color still gets its DEFAULT key', async () => {
+  assert.equal((await json('color_info', { color: ' #3B82F6 ' })).hex, '#3b82f6');
+  const t = await text('export_palette', { colors: [{ color: '#3B82F6', lock: true }], format: 'tailwind', color_type: 'hex' });
+  assert.equal(tailwindObject(t).blue.DEFAULT, '#3b82f6');
+  assert.ok(t.includes('&palettes=%233b82f6&'), 'share link carries the lowercase hex');
+});
+
+test('share_url is held to the same limits as typed input', async () => {
+  const link = (q) => `https://grayscale.design/app?${q}`;
+  assert.match(await error('generate_palette', { share_url: link('palettes=zzzzzz') }), /^Could not read "zzzzzz" as a color/);
+  for (const lums of ['abc,50,10', '50', '90,50,10,' + '5,'.repeat(18), '90,50,150']) {
+    assert.equal(await error('export_palette', { share_url: link(`lums=${lums}`), format: 'json' }), 'share_url lums must be 3-20 numbers from 0 to 100.', lums);
+  }
+  // Hex without "#" or in 3-digit form is normalized the way typed input is.
+  const out = await json('generate_palette', { share_url: link('palettes=3B82F6,%23f00') });
+  assert.deepEqual(Object.values(out.palettes).slice(1).map((p) => p.base), ['#3b82f6', '#ff0000']);
+});
+
 test('locking two colors onto the same shade is an error', async () => {
   assert.equal(
     await error('generate_palette', { colors: [{ color: '#3b82f6', lock: true }, { color: '#3b82f7', lock: true }] }),
