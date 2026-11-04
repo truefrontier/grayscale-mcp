@@ -68,6 +68,7 @@ These are replicated so the output matches the site exactly:
 - With Radix + OKLCH, the export stops after the header (the site throws inside a try/catch).
 - Stylus shade labels are 100, 200, 300… whatever the count (the site passes a boolean as the count).
 - When a share link has an unnamed palette before a named one, the site moves the name onto the wrong palette on load. `generate_palette({ share_url })` does the same.
+- `false_color({ lum })` sets the gray the way the site's luminance box does: it takes the red channel of a teal at that luminance. So the gray's own luminance can differ from the one you passed (`lum: 50` gives gray 100, luminance 12.74). Read `gray.lum` for the value actually used.
 
 ## Hosted service
 
@@ -88,7 +89,7 @@ The grayscale.design and True Frontier names and logos aren't covered by this li
 ```sh
 npm install
 npm run build
-npm test                                    # stdio: calls every tool through an MCP client
+npm test                                    # builds, runs test/*.test.mjs (offline), then the stdio smoke run
 node scripts/smoke.mjs http://localhost:8080/mcp   # HTTP, after `npm run start:http`
 fly deploy                                  # remote (app: grayscale-mcp)
 ```
