@@ -289,6 +289,27 @@ test('luminance_scale: presets, resizing and custom targets', async () => {
   assert.deepEqual(first, { label: '100', lum: 90, rgb: [243, 243, 243], hex: '#f3f3f3' });
 });
 
+test('luminance_scale: the dark, light, linear and radix presets', async () => {
+  const lums = async (preset, count) => (await json('luminance_scale', { preset, count })).shades.map((s) => s.lum);
+  // dark/light/linear redistribute the default range (93.87..0.52); fixed presets ignore the current scale.
+  assert.deepEqual(await lums('dark', 6), [93.87, 59.08, 36.03, 19.66, 8.25, 0.52]);
+  assert.deepEqual(await lums('light', 6), [93.87, 86.14, 74.73, 58.36, 35.31, 0.52]);
+  assert.deepEqual(await lums('linear', 6), [93.87, 75.2, 56.53, 37.86, 19.19, 0.52]);
+  assert.deepEqual(await lums('radix'), [98.1, 96.4, 90.1, 83.3, 75.6, 65.8, 52.6, 37.4, 15.2, 12.8, 10.2, 1.2]);
+  assert.deepEqual(await lums('radix', 6), [98.1, 96.4, 90.1, 83.3, 75.6, 65.8]);
+});
+
+test('svg prints swatch values with PHP rounding, like ExportController', async () => {
+  const svg = await text('export_palette', { colors: [{ color: '#3b82f6', name: 'primary' }], format: 'svg' });
+  const style = 'font-size: 5px;fill: #231f20;font-family: Courier, monospace';
+  const at = (y, v) => `<text transform="translate(350 ${y})" style="${style}">${v}</text>`;
+  // Index 5: the rect id counts from 1 (primary-600) while the label row says 500, as on the site.
+  const swatch5 = '<rect id="primary-600" x="350" y="230" width="60" height="60" style="fill: #619bf8" />' +
+    at(300, '#619bf8') + at(310, '97, 155, 248') + at(320, '217, 91.2%, 67.7%') + at(330, '32.76%') + at(340, '500');
+  assert.ok(svg.includes(swatch5), 'swatch 500 text block');
+  assert.ok(svg.includes('<image id="logo" width="322" height="63" transform="translate(692.66666666667 20) scale(0.33)" xlink:href="data:image/png;base64,'));
+});
+
 test('adjust_shade keeps hue and saturation and hits the target luminance', async () => {
   assert.deepEqual(await json('adjust_shade', { color: '#3b82f6', lum: 40.2 }), {
     input: '#3b82f6', target_lum: 40.2, hex: '#7babf9', rgb: [123, 171, 249], hsl: [217, 91.2, 73], actual_lum: 40.18,
