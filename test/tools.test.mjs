@@ -2,10 +2,10 @@
 // Run with `npm test` (builds dist/ first).
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { createServer } from '../dist/server.js';
+import { createServer, REMOTE_URL } from '../dist/server.js';
 
 const TOOLS = ['generate_palette', 'export_palette', 'luminance_scale', 'color_info', 'adjust_shade', 'suggest_colors', 'false_color'];
 const DEFAULT_LUMS = [93.87, 82.28, 68.67, 49.1, 40.2, 32.78, 13.29, 9.31, 6.3, 2.62, 1.3, 0.52];
@@ -56,6 +56,16 @@ test('lists the seven tools, all read-only and closed-world', async () => {
 test('server version matches package.json', () => {
   const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
   assert.equal(client.getServerVersion().version, pkg.version);
+});
+
+const SERVER_JSON = new URL('../server.json', import.meta.url);
+test('server.json matches package.json and the remote endpoint', { skip: !existsSync(SERVER_JSON) && 'no server.json in this checkout' }, () => {
+  const sj = JSON.parse(readFileSync(SERVER_JSON, 'utf8'));
+  const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+  assert.equal(sj.version, pkg.version);
+  assert.deepEqual(sj.remotes, [{ type: 'streamable-http', url: REMOTE_URL }]);
+  assert.equal(sj.repository.url, `https://github.com/${pkg.repository.replace('github:', '')}`);
+  assert.ok(sj.description.length <= 100, 'the MCP registry caps description at 100 characters');
 });
 
 test('README tools table, formats and presets match the live schemas', async () => {
