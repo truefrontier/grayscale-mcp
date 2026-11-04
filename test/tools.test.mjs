@@ -160,6 +160,18 @@ test('generate_palette applies the hue and saturation tweak per shade away from 
   assert.deepEqual(p.swatches[0].hsl.slice(0, 2), [267, 66.2]);
 });
 
+test('two colors with the same palette name are an error, not a silently dropped palette', async () => {
+  const msg = 'Each palette needs its own name, but 2 colors produced only: blue. Pass a distinct name for each color.';
+  assert.equal(await error('generate_palette', { colors: [{ color: '#3b82f6' }, { color: '#2563eb' }] }), msg);
+  assert.equal(await error('export_palette', { colors: [{ color: '#3b82f6' }, { color: '#2563eb' }], format: 'css-vars' }), msg);
+  assert.equal(await error('generate_palette', { share_url: 'https://grayscale.design/app?palettes=%233b82f6,%232563eb' }), msg);
+  assert.match(await error('generate_palette', { colors: [{ color: '#3b82f6', name: 'brand' }, { color: '#ef4444', name: 'brand' }] }), /produced only: brand\./);
+  // Integer-like names sort before "grayscale" in object key order.
+  assert.match(await error('generate_palette', { colors: [{ color: '#3b82f6', name: '500' }, { color: '#ef4444', name: '500' }] }), /produced only: 500\./);
+  const named = await json('generate_palette', { colors: [{ color: '#3b82f6', name: 'primary' }, { color: '#2563eb', name: 'accent' }] });
+  assert.deepEqual(Object.keys(named.palettes), ['grayscale', 'primary', 'accent']);
+});
+
 test('lock snaps the nearest grayscale shade to the color and adds a Tailwind DEFAULT key', async () => {
   const t = await text('export_palette', { colors: [{ color: '#3b82f6', lock: true }], format: 'tailwind', color_type: 'hex' });
   assert.ok(t.includes('lums=93.87,82.28,68.67,49.10,40.20,23.55,'), 'shade 500 takes the color luminance 23.55');

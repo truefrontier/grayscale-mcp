@@ -54,6 +54,16 @@ function resolveState(a: any, radix = false): State {
   };
 }
 
+// Palettes are keyed by name, so two colors with the same (auto) name would silently lose one.
+function buildDistinct(st: State) {
+  const built = buildColors(st);
+  const names = Object.keys(built.colors).filter((k) => k !== 'grayscale');
+  if (names.length !== st.palettes.length) {
+    throw new Error(`Each palette needs its own name, but ${st.palettes.length} colors produced only: ${names.join(', ')}. Pass a distinct name for each color.`);
+  }
+  return built;
+}
+
 const r2 = (n: number) => Math.round(n * 100) / 100;
 function swatchView(s: any) {
   return { label: String(s.label), hex: s.hex, rgb: s.rgb, hsl: s.hsl.map(r2), oklch: s.oklch, lum: r2(s.lum) };
@@ -102,7 +112,7 @@ export function createServer() {
     },
     wrap((a: any) => {
       const st = resolveState(a);
-      const { colors, lums } = buildColors(st);
+      const { colors, lums } = buildDistinct(st);
       const out: any = { share_url: shareUrl(st, lums.map((l) => l.lum)), shade_labels: lums.map((l) => String(l.label)), luminance_targets: lums.map((l) => r2(l.lum)), palettes: {} };
       for (const [name, c] of Object.entries<any>(colors)) {
         out.palettes[name] = { ...(c.hex ? { base: c.hex, hue_shift: c.filters.hue, sat_shift: c.filters.sat } : {}), swatches: Object.values(c.swatches).map(swatchView) };
@@ -128,7 +138,7 @@ export function createServer() {
     wrap((a: any) => {
       const fmt = a.format as Format;
       const st = resolveState(a, fmt === 'radix');
-      const { colors, lums, lockedHexes } = buildColors(st);
+      const { colors, lums, lockedHexes } = buildDistinct(st);
       const url = shareUrl(st, lums.map((l) => l.lum));
       return exportText(fmt, colors, { cssType: (a.color_type ?? 'rgb') as ColorType, url, lockedHexes });
     }),
