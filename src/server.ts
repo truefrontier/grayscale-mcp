@@ -41,13 +41,27 @@ function resolveLums(a: { preset?: PresetName; count?: number; lums?: number[] }
 function resolveState(a: any, radix = false): State {
   if (a.share_url) {
     const st = parseShareUrl(a.share_url);
-    return { ...st, radix };
+    // A share link skips the input schema, so hold it to the same limits as typed input.
+    if (st.lums.length < 3 || st.lums.length > 20 || !st.lums.every((v) => v >= 0 && v <= 100)) {
+      throw new Error('share_url lums must be 3-20 numbers from 0 to 100.');
+    }
+    return { ...st, palettes: st.palettes.map((p) => ({ ...p, hex: parseColorInput(p.hex) })), radix };
   }
   return {
     lums: resolveLums(a),
     palettes: (a.colors ?? []).map((c: any) => ({ hex: parseColorInput(c.color), name: c.name, hue: c.hue_shift ?? 0, sat: c.sat_shift ?? 0, lock: c.lock })),
     radix,
   };
+}
+
+// Palettes are keyed by name, so two colors with the same (auto) name would silently lose one.
+function buildDistinct(st: State) {
+  const built = buildColors(st);
+  const names = Object.keys(built.colors).filter((k) => k !== 'grayscale');
+  if (names.length !== st.palettes.length) {
+    throw new Error(`Each palette needs its own name, but ${st.palettes.length} colors produced only: ${names.join(', ')}. Pass a distinct name for each color.`);
+  }
+  return built;
 }
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -62,11 +76,12 @@ function contrast(l1: number, l2: number) {
 
 const ok = (data: unknown) => ({ content: [{ type: 'text' as const, text: typeof data === 'string' ? data : JSON.stringify(data, null, 2) }] });
 // The site's paste parser is lenient (it strips non-hex chars). Agents get an error instead of a junk color.
+// Lowercase like the site's color picker, so a locked color matches its generated swatch (Tailwind DEFAULT).
 function parseColorInput(txt: string): string {
   const input = String(txt).trim();
   const recognized = /^#?([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(input) || /(\d+)\s*[,\s]\s*(\d+)(%?)\s*[,\s]\s*(\d+)(%?)/.test(input);
   if (!recognized) throw new Error(`Could not read "${txt}" as a color. Use hex (#3b82f6, 3b82f6, #38f), rgb(59, 130, 246) or hsl(217, 91%, 60%).`);
-  return parseLoose(input);
+  return parseLoose(input).toLowerCase();
 }
 const fail = (e: unknown) => ({ isError: true, content: [{ type: 'text' as const, text: String((e as Error)?.message ?? e) }] });
 const wrap = <A,>(fn: (a: A) => unknown) => async (a: A) => {
@@ -97,7 +112,7 @@ export function createServer() {
     },
     wrap((a: any) => {
       const st = resolveState(a);
-      const { colors, lums } = buildColors(st);
+      const { colors, lums } = buildDistinct(st);
       const out: any = { share_url: shareUrl(st, lums.map((l) => l.lum)), shade_labels: lums.map((l) => String(l.label)), luminance_targets: lums.map((l) => r2(l.lum)), palettes: {} };
       for (const [name, c] of Object.entries<any>(colors)) {
         out.palettes[name] = { ...(c.hex ? { base: c.hex, hue_shift: c.filters.hue, sat_shift: c.filters.sat } : {}), swatches: Object.values(c.swatches).map(swatchView) };
@@ -123,7 +138,7 @@ export function createServer() {
     wrap((a: any) => {
       const fmt = a.format as Format;
       const st = resolveState(a, fmt === 'radix');
-      const { colors, lums, lockedHexes } = buildColors(st);
+      const { colors, lums, lockedHexes } = buildDistinct(st);
       const url = shareUrl(st, lums.map((l) => l.lum));
       return exportText(fmt, colors, { cssType: (a.color_type ?? 'rgb') as ColorType, url, lockedHexes });
     }),
