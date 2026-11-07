@@ -1,0 +1,10 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "design.grayscale/mcp",
+  "title": "grayscale.design",
+  "description": "Color palettes built by luminance, not HSL lightness: generate, export, adjust and check shades.",
+  "repository": { "url": "https://github.com/truefrontier/grayscale-mcp", "source": "github" },
+  "websiteUrl": "https://grayscale.design",
+  "version": "0.1.2",
+  "remotes": [ { "type": "streamable-http", "url": "https://mcp.grayscale.design/mcp" } ]
+}
