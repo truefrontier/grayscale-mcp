@@ -103,14 +103,27 @@ test('color_info parses every input form the site accepts', async () => {
     '#38f': '#3388ff',
     'rgb(59, 130, 246)': '#3b82f6',
     '59 130 246': '#3b82f6',
-    'rgb(300, 130, 246)': '#ff82f6', // channels clamp to 255, as the site does
+    'RGBA(59, 130, 246, 0.5)': '#3b82f6', // alpha is ignored
+    'rgb(59 130 246 / 50%)': '#3b82f6',
+    'rgb(255, 255, 255)': '#ffffff',
     'hsl(217, 91%, 60%)': '#3c83f6',
+    '217 91% 60%': '#3c83f6', // a % with no keyword means HSL
+    'hsl(217.5, 91%, 60%)': '#3c82f6', // decimals are read whole, not from the last digit
+    'hsl(360, 100%, 50%)': '#ff0000', // 360 is red, the same as 0
   };
   for (const [input, hex] of Object.entries(cases)) assert.equal((await json('color_info', { color: input })).hex, hex, input);
 });
 
+test('color_info refuses out-of-range values instead of clamping or misreading them', async () => {
+  const bad = [
+    'hsl(400, 150%, 70%)', 'hsl(361, 50%, 50%)', 'hsl(-10, 50%, 50%)', 'hsl(200, 101%, 50%)', 'hsl(200, 50%, 101%)', 'hsl(200, -1%, 50%)',
+    'rgb(300, 130, 246)', 'rgb(256, 0, 0)', 'rgb(0, 0, -1)', 'rgb(100%, 0%, 0%)',
+  ];
+  for (const color of bad) assert.ok((await error('color_info', { color })).startsWith(`Could not read "${color}" as a color.`), color);
+});
+
 test('color_info rejects text that is not a color', async () => {
-  for (const bad of ['not a color at all', '', '#12', '#12345', 'rgb(1, 2)', 'rgb(1, -2, 3)']) {
+  for (const bad of ['not a color at all', '', '#12', '#12345', 'rgb(1, 2)', 'rgb(1, -2, 3)', 'my color is 59 130 246', '59 130 246 or so', 'rgb(59, 130, 246', '59, 130, 246)', 'cafebabe!']) {
     assert.equal(
       await error('color_info', { color: bad }),
       `Could not read "${bad}" as a color. Use hex (#3b82f6, 3b82f6, #38f), rgb(59, 130, 246) or hsl(217, 91%, 60%).`,
@@ -203,6 +216,21 @@ test('share_url is held to the same limits as typed input', async () => {
   for (const lums of ['abc,50,10', '50', '90,50,10,' + '5,'.repeat(18), '90,50,150']) {
     assert.equal(await error('export_palette', { share_url: link(`lums=${lums}`), format: 'json' }), 'share_url lums must be 3-20 numbers from 0 to 100.', lums);
   }
+  // filters are hue|sat per palette, with the same ranges as hue_shift and sat_shift.
+  for (const filters of ['51%7C0', '-51%7C0', '0%7C31', '0%7C-31', 'Infinity%7C0']) {
+    assert.equal(
+      await error('generate_palette', { share_url: link(`palettes=%233b82f6&filters=${filters}`) }),
+      'share_url filters must be hue|sat pairs, hue from -50 to 50 and sat from -30 to 30.',
+      filters,
+    );
+  }
+  const edge = Object.values((await json('generate_palette', { share_url: link('palettes=%233b82f6&filters=-50%7C30') })).palettes)[1];
+  assert.deepEqual([edge.hue_shift, edge.sat_shift], [-50, 30]);
+  // At most 30 palettes, the same cap as colors.
+  const hexes = (n) => Array.from({ length: n }, (_, i) => `%23${(i * 8).toString(16).padStart(2, '0')}0000`).join(',');
+  const names = (n) => Array.from({ length: n }, (_, i) => `c${i}`).join(',');
+  assert.equal(await error('generate_palette', { share_url: link(`palettes=${hexes(31)}&names=${names(31)}`) }), 'share_url can hold at most 30 palettes.');
+  assert.equal(Object.keys((await json('generate_palette', { share_url: link(`palettes=${hexes(30)}&names=${names(30)}`) })).palettes).length, 31);
   // Hex without "#" or in 3-digit form is normalized the way typed input is.
   const out = await json('generate_palette', { share_url: link('palettes=3B82F6,%23f00') });
   assert.deepEqual(Object.values(out.palettes).slice(1).map((p) => p.base), ['#3b82f6', '#ff0000']);
