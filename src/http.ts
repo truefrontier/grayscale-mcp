@@ -62,12 +62,14 @@ function send(res: ServerResponse, code: number, body: unknown, type = 'applicat
   res.end(typeof body === 'string' ? body : JSON.stringify(body));
 }
 
+class BodyTooLarge extends Error {}
+
 async function readBody(req: IncomingMessage) {
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const c of req) {
     size += c.length;
-    if (size > 256 * 1024) throw new Error('body too large');
+    if (size > 256 * 1024) throw new BodyTooLarge();
     chunks.push(c);
   }
   return chunks.length ? JSON.parse(Buffer.concat(chunks).toString('utf8')) : undefined;
@@ -114,7 +116,9 @@ const server = createHttpServer(async (req, res) => {
     await server.connect(transport);
     await transport.handleRequest(req, res, body);
   } catch (e) {
-    if (!res.headersSent) send(res, 400, { jsonrpc: '2.0', error: { code: -32700, message: String((e as Error).message) }, id: null });
+    if (res.headersSent) return;
+    if (e instanceof BodyTooLarge) return send(res, 413, { jsonrpc: '2.0', error: { code: -32000, message: 'Request body too large (max 256 KB).' }, id: null });
+    send(res, 400, { jsonrpc: '2.0', error: { code: -32700, message: String((e as Error).message) }, id: null });
   }
 });
 // Log the port actually bound, so PORT=0 (the tests) reports the port the OS picked.
