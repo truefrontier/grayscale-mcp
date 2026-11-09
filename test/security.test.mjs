@@ -3,6 +3,8 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
+import { spawn } from 'node:child_process';
+import { createServer as netServer } from 'node:net';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createServer } from '../dist/server.js';
@@ -116,4 +118,46 @@ test('a share link longer than 4096 characters is refused', async () => {
   const long = shareLink('a'.repeat(4096));
   assert.equal((await call('generate_palette', { share_url: long })).isError, true);
   assert.equal((await call('generate_palette', { share_url: shareLink('primary') })).isError, false);
+});
+
+// --- HTTP server (dist/http.js on a free localhost port) ---
+
+const HTTP_JS = new URL('../dist/http.js', import.meta.url).pathname;
+function freePort() {
+  return new Promise((resolve, reject) => {
+    const s = netServer().once('error', reject).listen(0, '127.0.0.1', () => {
+      const { port } = s.address();
+      s.close(() => resolve(port));
+    });
+  });
+}
+async function start(env = {}) {
+  const port = await freePort();
+  const childEnv = { ...process.env, PORT: String(port), ...env };
+  for (const k of Object.keys(childEnv)) if (childEnv[k] === undefined) delete childEnv[k];
+  const child = spawn(process.execPath, [HTTP_JS], { env: childEnv, stdio: ['ignore', 'pipe', 'pipe'] });
+  let stderr = '';
+  child.stderr.on('data', (d) => (stderr += d));
+  await new Promise((resolve, reject) => {
+    child.once('exit', (code) => reject(new Error(`http.js exited early with code ${code}: ${stderr}`)));
+    child.stdout.on('data', (d) => d.toString().includes('listening') && resolve());
+  });
+  return { base: `http://127.0.0.1:${port}`, child, stderr: () => stderr };
+}
+// A malformed body is answered with a 400 without building an MCP server, so posts are cheap.
+const post = (base, headers = {}) => fetch(base + '/mcp', { method: 'POST', headers, body: '{' }).then((r) => r.status);
+
+test('a bad RATE_LIMIT_PER_MIN falls back to 120 a minute instead of turning the limit off', async () => {
+  for (const value of ['abc', 'Infinity', '', '0', '-5', '2.5']) {
+    const srv = await start({ RATE_LIMIT_PER_MIN: value, FLY_APP_NAME: undefined });
+    try {
+      const statuses = [];
+      for (let i = 0; i < 121; i++) statuses.push(await post(srv.base));
+      assert.equal(statuses.filter((s) => s === 400).length, 120, `RATE_LIMIT_PER_MIN=${JSON.stringify(value)}`);
+      assert.equal(statuses[120], 429, `RATE_LIMIT_PER_MIN=${JSON.stringify(value)}`);
+      assert.match(srv.stderr(), /RATE_LIMIT_PER_MIN.*using 120/);
+    } finally {
+      srv.child.kill();
+    }
+  }
 });
