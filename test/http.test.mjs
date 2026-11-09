@@ -101,7 +101,7 @@ test('a body over 256 KB is refused', async () => {
 });
 
 test('the rate limit returns 429 after RATE_LIMIT_PER_MIN posts from one client IP', async () => {
-  const limited = await start({ RATE_LIMIT_PER_MIN: '2' });
+  const limited = await start({ RATE_LIMIT_PER_MIN: '2', FLY_APP_NAME: 'grayscale-mcp' }); // fly-client-ip is only trusted on Fly
   try {
     const hit = (ip) => fetch(limited.base + '/mcp', { method: 'POST', headers: { 'fly-client-ip': ip }, body: '{' }).then((r) => r.status);
     assert.equal(await hit('203.0.113.1'), 400);

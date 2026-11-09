@@ -189,8 +189,8 @@ test('two colors with the same palette name are an error, not a silently dropped
   assert.equal(await error('export_palette', { colors: [{ color: '#3b82f6' }, { color: '#2563eb' }], format: 'css-vars' }), msg);
   assert.equal(await error('generate_palette', { share_url: 'https://grayscale.design/app?palettes=%233b82f6,%232563eb' }), msg);
   assert.match(await error('generate_palette', { colors: [{ color: '#3b82f6', name: 'brand' }, { color: '#ef4444', name: 'brand' }] }), /produced only: brand\./);
-  // Integer-like names sort before "grayscale" in object key order.
-  assert.match(await error('generate_palette', { colors: [{ color: '#3b82f6', name: '500' }, { color: '#ef4444', name: '500' }] }), /produced only: 500\./);
+  // A name has to start with a letter, so integer-like names (which sort before "grayscale") can't be passed.
+  assert.match(await error('generate_palette', { colors: [{ color: '#3b82f6', name: '500' }, { color: '#ef4444', name: '500' }] }), /start with a letter/);
   const named = await json('generate_palette', { colors: [{ color: '#3b82f6', name: 'primary' }, { color: '#2563eb', name: 'accent' }] });
   assert.deepEqual(Object.keys(named.palettes), ['grayscale', 'primary', 'accent']);
 });
