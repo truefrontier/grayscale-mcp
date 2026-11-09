@@ -2,11 +2,12 @@
 // Run after `npm run build`: imports the compiled dist/.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { PRESETS, buildLums, buildColors, generateSwatches } from '../dist/palette.js';
 import * as Color from '../dist/site/color.js';
 
 const lums = buildLums(PRESETS.default.getValues());
+const snapshot = JSON.parse(readFileSync(new URL('./in-range-palettes.snapshot.json', import.meta.url), 'utf8'));
 
 // Hue of each shade, and the shade index the base color sits on.
 function shadeHues(hex, hue) {
@@ -37,7 +38,7 @@ test('a shade landing on exactly 360 is red, not gray', () => {
   assert.ok(r > g && r > b, `expected a red shade, got rgb(${r}, ${g}, ${b})`);
 });
 
-test('palettes whose hues stay in 0..360 are byte-identical to main', () => {
+test('palettes whose hues stay in 0..360 match main', () => {
   const state = {
     lums: PRESETS.default.getValues(),
     palettes: [
@@ -46,7 +47,15 @@ test('palettes whose hues stay in 0..360 are byte-identical to main', () => {
       { hex: '#10b981', name: 'brand', hue: -7.4, sat: 4.1 },
     ],
   };
-  const out = JSON.stringify(buildColors(state).colors);
-  // sha256 of the same call on main a39284f, before this fix.
-  assert.equal(createHash('sha256').update(out).digest('hex'), '977c1d17e1853056872bf74d67c9b617822d1d4ec5e657c3e88641aa1dd09806');
+  const { colors } = buildColors(state);
+  // Snapshot of the same call on main a39284f, before this fix. Numbers are rounded to 4 places,
+  // the finest the tools print (oklch). Unrounded, `lum` differs in its last digits between
+  // Node 22 and Node 24+ (Math.pow), so an exact hash only matched one of them.
+  const round4 = (k, v) => (typeof v === 'number' ? Math.round(v * 1e4) / 1e4 : v);
+  assert.deepEqual(JSON.parse(JSON.stringify(colors, round4)), snapshot);
+  // Hues are printed unrounded (hsl export, json), so they must stay exactly main's `h + shift * steps`.
+  for (const p of state.palettes) {
+    const { swatches, baseHSL, closestIndex } = generateSwatches(p.hex, lums, { hue: p.hue ?? 0, sat: p.sat ?? 0 });
+    assert.deepEqual(swatches.map((s) => s.hsl[0]), swatches.map((s, i) => baseHSL.h + (p.hue ?? 0) * Math.abs(closestIndex - i)));
+  }
 });
