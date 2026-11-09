@@ -225,6 +225,11 @@ function phpStr(x: number) {
   return s === '-0' ? '-0' : s;
 }
 
+// XML-escape for SVG text and attribute values. Names and hex are checked upstream, but this renderer
+// mirrors /export-svgs, which takes any posted JSON, so it escapes everything it writes.
+const XML: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+const xml = (v: unknown) => String(v).replace(/[&<>"']/g, (c) => XML[c]);
+
 // ExportController@svgs. The site POSTs JSON.stringify(cssColors) to /export-svgs; we render the same SVG locally.
 function svg(colors: Record<string, any>) {
   // The site sends the colors through JSON, so mirror that round trip.
@@ -233,7 +238,7 @@ function svg(colors: Record<string, any>) {
   let j = 0;
   let file = '';
   const swatchW = 60, swatchH = 60, topPadding = 60, leftPadding = 50;
-  const t = (x: number, y: number, style: string, text: string) => `<text transform="translate(${phpStr(x)} ${phpStr(y)})" style="${style}">${text}</text>`;
+  const t = (x: number, y: number, style: string, text: string) => `<text transform="translate(${phpStr(x)} ${phpStr(y)})" style="${style}">${xml(text)}</text>`;
   const LBL = 'font-size: 5px;fill: #b4bed5;font-family: Courier, monospace;font-weight: 700';
   const VAL = 'font-size: 5px;fill: #231f20;font-family: Courier, monospace';
   for (const name of Object.keys(data)) {
@@ -249,7 +254,7 @@ function svg(colors: Record<string, any>) {
       const swatchCount = swatchKeys.length;
       const lbl = swatchCount >= 10 ? (idx == 0 ? '50' : idx + '00') : idx + 1 + '00';
       const x = j * swatchW + leftPadding;
-      file += `<rect id="${name}-${idx + 1}00" x="${x}" y="${y}" width="${swatchW}" height="${swatchH}" style="fill: ${sw.hex}" />`;
+      file += `<rect id="${xml(name)}-${idx + 1}00" x="${x}" y="${y}" width="${swatchW}" height="${swatchH}" style="fill: ${xml(sw.hex)}" />`;
       file += t(x, y + swatchH + 10, VAL, sw.hex);
       file += t(x, y + swatchH + 20, VAL, sw.rgb.map((v: number) => phpStr(v)).join(', '));
       file += t(x, y + swatchH + 30, VAL, `${phpStr(phpRound(sw.hsl[0]))}, ${phpStr(phpRound(sw.hsl[1], 1))}%, ${phpStr(phpRound(sw.hsl[2], 1))}%`);
