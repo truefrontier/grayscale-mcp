@@ -22,7 +22,15 @@ export function formatSwatchColor(swatch: any, cssType: ColorType) {
 const keys = (o: object) => Object.keys(o);
 // A palette name can hold '-' (brand-blue, or grayscale-alt from the site's own rule), which is fine in
 // CSS but not in a JS identifier or an unquoted key. These keep the JS exports parseable.
-const jsIdent = (name: string) => name.replace(/-+(.?)/g, (_, c: string) => c.toUpperCase());
+// A reserved word (class, default, let...) can't be a const either, so it gets a leading _. No palette name
+// starts with _, so _class can't clash with another palette.
+const RESERVED = new Set(('break case catch class const continue debugger default delete do else enum export extends false finally ' +
+  'for function if import in instanceof new null return super switch this throw true try typeof var void while with ' +
+  'implements interface let package private protected public static yield await arguments eval undefined NaN Infinity').split(' '));
+const jsIdent = (name: string) => {
+  const id = name.replace(/-+(.?)/g, (_, c: string) => c.toUpperCase());
+  return RESERVED.has(id) ? `_${id}` : id;
+};
 const jsKey = (name: string) => (/^[A-Za-z_$][\w$]*$/.test(name) ? name : `'${name}'`);
 const sorted = (o: object) => Object.keys(o).sort((a, b) => parseInt(a) - parseInt(b));
 
