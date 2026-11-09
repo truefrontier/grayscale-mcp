@@ -92,6 +92,28 @@ test('the JavaScript exports still parse when a name has a hyphen', async () => 
   assert.match(config, /^      grayscale: setAsCssVariable\('grayscale'\),$/m); // plain names stay unquoted, as on the site
 });
 
+test('the JavaScript exports still load when a name is a reserved word', async () => {
+  // Reserved words, strict-mode and module-only ones, eval/arguments, and the three globals a script can't redeclare.
+  const words = ['break', 'case', 'catch', 'class', 'const', 'continue', 'debugger', 'default', 'delete', 'do', 'else', 'enum', 'export',
+    'extends', 'false', 'finally', 'for', 'function', 'if', 'import', 'in', 'instanceof', 'new', 'null', 'return', 'super', 'switch',
+    'this', 'throw', 'true', 'try', 'typeof', 'var', 'void', 'while', 'with', 'implements', 'interface', 'let', 'package', 'private',
+    'protected', 'public', 'static', 'yield', 'await', 'arguments', 'eval', 'undefined', 'NaN', 'Infinity'];
+  for (const name of words) {
+    const colors = [{ color: '#3b82f6', name }];
+    for (const format of ['tailwind', 'auto-dark-tailwind']) {
+      const r = await call('export_palette', { colors, format });
+      assert.doesNotThrow(() => new vm.Script(r.text), `${format} with ${name}`);
+    }
+    const radix = (await call('export_palette', { colors, format: 'radix' })).text;
+    assert.doesNotThrow(() => new vm.Script(radix).runInNewContext({}), `radix with ${name}, as a script:\n${radix.slice(0, 200)}`);
+    await import('data:text/javascript,' + encodeURIComponent(radix)).catch((e) => assert.fail(`radix with ${name}, as a module: ${e.message}`));
+    assert.match(radix, new RegExp(`^const _${name} = \\{\\n  '${name}1': `, 'm'));
+    assert.match(radix, new RegExp(`^const _${name}Dark = \\{\\n  '${name}1': `, 'm'));
+  }
+  // Ordinary names keep their plain identifier.
+  assert.match((await call('export_palette', { colors: [{ color: '#3b82f6', name: 'classic' }], format: 'radix' })).text, /^const classic = \{$/m);
+});
+
 test('long color strings are refused before the color regex sees them', async () => {
   // '1' + spaces + 'x' makes the rgb/hsl regex backtrack in O(n^2): about 1 s at 50k spaces and
   // about 30 s at the 256 KB body limit, all of it blocking the server.
@@ -182,6 +204,27 @@ test('on Fly, the rate limit buckets by fly-client-ip and ignores x-forwarded-fo
     assert.equal(await post(srv.base, { ...a, 'x-forwarded-for': '198.51.100.1' }), 400);
     assert.equal(await post(srv.base, { ...a, 'x-forwarded-for': '198.51.100.2' }), 429);
     assert.equal(await post(srv.base, { 'fly-client-ip': '203.0.113.2' }), 400);
+  } finally {
+    srv.child.kill();
+  }
+});
+
+test('the rate-limit table holds at most 10,000 clients, so rotating IPv6 addresses cannot grow it', async () => {
+  const srv = await start({ RATE_LIMIT_PER_MIN: '2', FLY_APP_NAME: 'grayscale-mcp' });
+  try {
+    const first = { 'fly-client-ip': '2001:db8::1' };
+    assert.deepEqual([await post(srv.base, first), await post(srv.base, first), await post(srv.base, first)], [400, 400, 429]);
+    // 10,000 more addresses, the way one IPv6 client can rotate through its own prefix. None is refused.
+    const statuses = [];
+    for (let i = 0; i < 10_000; i += 100) {
+      statuses.push(...(await Promise.all(Array.from({ length: 100 }, (_, j) => post(srv.base, { 'fly-client-ip': `2001:db8:1::${(i + j).toString(16)}` })))));
+    }
+    assert.ok(statuses.every((s) => s === 400));
+    // The table is full, so the oldest bucket (the first client's) was dropped and starts over.
+    assert.equal(await post(srv.base, first), 400);
+    // The newest buckets are kept: the last address is still counted.
+    const last = { 'fly-client-ip': '2001:db8:1::270f' };
+    assert.deepEqual([await post(srv.base, last), await post(srv.base, last)], [400, 429]);
   } finally {
     srv.child.kill();
   }
