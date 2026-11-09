@@ -114,6 +114,25 @@ test('the JavaScript exports still load when a name is a reserved word', async (
   assert.match((await call('export_palette', { colors: [{ color: '#3b82f6', name: 'classic' }], format: 'radix' })).text, /^const classic = \{$/m);
 });
 
+test('Radix refuses two names that would become the same const, and names both', async () => {
+  const cases = [
+    [['brand-blue', 'brandBlue'], /"brand-blue" and "brandBlue" would both be const brandBlue\./],
+    [['foo', 'foo-dark'], /"foo" \(its dark scale\) and "foo-dark" would both be const fooDark\./],
+    [['foo-dark', 'foo'], /"foo-dark" and "foo" \(its dark scale\) would both be const fooDark\./],
+  ];
+  for (const [names, msg] of cases) {
+    const colors = [{ color: '#3b82f6', name: names[0] }, { color: '#ef4444', name: names[1] }];
+    const r = await call('export_palette', { colors, format: 'radix' });
+    let parses = 'parses';
+    try { new vm.Script(r.text); } catch (e) { parses = `doesn't parse: ${e.message}`; }
+    assert.equal(r.isError, true, `${names.join(' + ')}: expected an error, got Radix that ${parses}`);
+    assert.match(r.text, msg);
+    // Only Radix turns names into consts; the other formats keep both palettes.
+    const css = await call('export_palette', { colors, format: 'css-vars' });
+    assert.equal(css.isError, false, css.text);
+  }
+});
+
 test('long color strings are refused before the color regex sees them', async () => {
   // '1' + spaces + 'x' makes the rgb/hsl regex backtrack in O(n^2): about 1 s at 50k spaces and
   // about 30 s at the 256 KB body limit, all of it blocking the server.

@@ -54,6 +54,16 @@ export function exportText(format: Format, colors: Record<string, any>, opts: { 
       return `// Grayscale Design palette: ${url}\nconst grayscale = ` + JSON.stringify(out, null, '  ');
     }
     case 'radix': {
+      // Two names can become one const (brand-blue and brandBlue, or foo-dark and foo's fooDark), which won't
+      // load. Refuse the set, like duplicate names. This sits outside the try below, which swallows errors.
+      const owner = new Map<string, string>();
+      for (const name of keys(colors)) {
+        for (const [id, label] of [[jsIdent(name), `"${name}"`], [`${jsIdent(name)}Dark`, `"${name}" (its dark scale)`]]) {
+          const other = owner.get(id);
+          if (other) throw new Error(`Radix writes each palette as a JavaScript const, but ${other} and ${label} would both be const ${id}. Rename one of them.`);
+          owner.set(id, label);
+        }
+      }
       let js = `// Grayscale Design palette: ${url}\n`;
       try {
         js += keys(colors).reduce((str, name) => {
