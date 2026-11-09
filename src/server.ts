@@ -2,7 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import * as Color from './site/color.js';
 import {
-  PRESETS, PRESET_NAMES, PresetName, State, buildColors, buildLums, parseColorInput as parseLoose, parseShareUrl,
+  PRESETS, PRESET_NAMES, PresetName, State, buildColors, buildLums, parseColorInput as parsePaste, parseShareUrl,
   resizeLums, shareUrl, suggestedColors,
 } from './palette.js';
 import { ColorType, FORMATS, Format, exportText } from './exports.js';
@@ -25,8 +25,9 @@ const scaleShape = {
   lums: z.array(z.number().min(0).max(100)).min(3).max(20).optional().describe('Custom luminance targets (0-100, WCAG relative luminance x100), lightest first. Same as dragging the site sliders.'),
 };
 
+const MAX_PALETTES = 30;
 const paletteShape = {
-  colors: z.array(colorSchema).max(30).optional().describe('Base colors, one palette each.'),
+  colors: z.array(colorSchema).max(MAX_PALETTES).optional().describe('Base colors, one palette each.'),
   ...scaleShape,
   share_url: z.string().url().optional().describe('A grayscale.design/app?... share link to load instead of colors/lums.'),
 };
@@ -41,13 +42,31 @@ function resolveLums(a: { preset?: PresetName; count?: number; lums?: number[] }
 function resolveState(a: any, radix = false): State {
   if (a.share_url) {
     const st = parseShareUrl(a.share_url);
-    return { ...st, radix };
+    // A share link skips the input schema, so hold it to the same limits as typed input.
+    if (st.lums.length < 3 || st.lums.length > 20 || !st.lums.every((v) => v >= 0 && v <= 100)) {
+      throw new Error('share_url lums must be 3-20 numbers from 0 to 100.');
+    }
+    if (st.palettes.length > MAX_PALETTES) throw new Error(`share_url can hold at most ${MAX_PALETTES} palettes.`);
+    if (!st.palettes.every((p) => Math.abs(p.hue!) <= 50 && Math.abs(p.sat!) <= 30)) {
+      throw new Error('share_url filters must be hue|sat pairs, hue from -50 to 50 and sat from -30 to 30.');
+    }
+    return { ...st, palettes: st.palettes.map((p) => ({ ...p, hex: parseColorInput(p.hex) })), radix };
   }
   return {
     lums: resolveLums(a),
     palettes: (a.colors ?? []).map((c: any) => ({ hex: parseColorInput(c.color), name: c.name, hue: c.hue_shift ?? 0, sat: c.sat_shift ?? 0, lock: c.lock })),
     radix,
   };
+}
+
+// Palettes are keyed by name, so two colors with the same (auto) name would silently lose one.
+function buildDistinct(st: State) {
+  const built = buildColors(st);
+  const names = Object.keys(built.colors).filter((k) => k !== 'grayscale');
+  if (names.length !== st.palettes.length) {
+    throw new Error(`Each palette needs its own name, but ${st.palettes.length} colors produced only: ${names.join(', ')}. Pass a distinct name for each color.`);
+  }
+  return built;
 }
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -61,12 +80,11 @@ function contrast(l1: number, l2: number) {
 }
 
 const ok = (data: unknown) => ({ content: [{ type: 'text' as const, text: typeof data === 'string' ? data : JSON.stringify(data, null, 2) }] });
-// The site's paste parser is lenient (it strips non-hex chars). Agents get an error instead of a junk color.
+// Lowercase like the site's color picker, so a locked color matches its generated swatch (Tailwind DEFAULT).
 function parseColorInput(txt: string): string {
-  const input = String(txt).trim();
-  const recognized = /^#?([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(input) || /(\d+)\s*[,\s]\s*(\d+)(%?)\s*[,\s]\s*(\d+)(%?)/.test(input);
-  if (!recognized) throw new Error(`Could not read "${txt}" as a color. Use hex (#3b82f6, 3b82f6, #38f), rgb(59, 130, 246) or hsl(217, 91%, 60%).`);
-  return parseLoose(input);
+  const hex = parsePaste(String(txt));
+  if (!hex) throw new Error(`Could not read "${txt}" as a color. Use hex (#3b82f6, 3b82f6, #38f), rgb(59, 130, 246) or hsl(217, 91%, 60%).`);
+  return hex.toLowerCase();
 }
 const fail = (e: unknown) => ({ isError: true, content: [{ type: 'text' as const, text: String((e as Error)?.message ?? e) }] });
 const wrap = <A,>(fn: (a: A) => unknown) => async (a: A) => {
@@ -97,7 +115,7 @@ export function createServer() {
     },
     wrap((a: any) => {
       const st = resolveState(a);
-      const { colors, lums } = buildColors(st);
+      const { colors, lums } = buildDistinct(st);
       const out: any = { share_url: shareUrl(st, lums.map((l) => l.lum)), shade_labels: lums.map((l) => String(l.label)), luminance_targets: lums.map((l) => r2(l.lum)), palettes: {} };
       for (const [name, c] of Object.entries<any>(colors)) {
         out.palettes[name] = { ...(c.hex ? { base: c.hex, hue_shift: c.filters.hue, sat_shift: c.filters.sat } : {}), swatches: Object.values(c.swatches).map(swatchView) };
@@ -123,7 +141,7 @@ export function createServer() {
     wrap((a: any) => {
       const fmt = a.format as Format;
       const st = resolveState(a, fmt === 'radix');
-      const { colors, lums, lockedHexes } = buildColors(st);
+      const { colors, lums, lockedHexes } = buildDistinct(st);
       const url = shareUrl(st, lums.map((l) => l.lum));
       return exportText(fmt, colors, { cssType: (a.color_type ?? 'rgb') as ColorType, url, lockedHexes });
     }),

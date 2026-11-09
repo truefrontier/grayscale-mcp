@@ -162,27 +162,24 @@ export function resizeLums(values: number[], newCount: number): number[] {
   return out;
 }
 
-// App.vue onPaste: how the site turns pasted text into a hex.
-export function parseColorInput(txt: string): string {
+// App.vue onPaste (utils/parse-color.js on the site): pasted text to a hex, or null if it isn't a color.
+// Takes 3- or 6-digit hex, or three numbers, optionally inside rgb()/rgba()/hsl()/hsla() and with an alpha that is ignored.
+// Without a keyword, a % on the 2nd or 3rd number means HSL. Out-of-range values are refused, not clamped.
+export function parseColorInput(txt: string): string | null {
   const input = txt.trim();
-  const hexMatch = input.match(/^#?([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/);
-  if (hexMatch) {
-    let hexValue = `#${hexMatch[1]}`;
-    if (hexValue.length === 4) hexValue = '#' + [...hexValue.slice(1)].map((c) => c + c).join('');
-    return hexValue;
+  const hex = input.match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (hex) return '#' + (hex[1].length === 3 ? [...hex[1]].map((c) => c + c).join('') : hex[1]);
+  const m = input.match(/^(?:(rgb|hsl)a?\s*\(\s*)?(-?\d*\.?\d+)\s*[,\s]\s*(-?\d*\.?\d+)(%?)\s*[,\s]\s*(-?\d*\.?\d+)(%?)(?:\s*[,/]\s*\d*\.?\d+%?)?\s*(\))?$/i);
+  if (!m || !m[1] !== !m[7]) return null;
+  const [a, b, c] = [m[2], m[3], m[5]].map(Number);
+  const pct = !!(m[4] || m[6]);
+  if (m[1] ? m[1].toLowerCase() === 'hsl' : pct) {
+    if (a < 0 || a > 360 || b < 0 || b > 100 || c < 0 || c > 100) return null;
+    const rgb = Color.HSLtoRGB(a % 360, b, c); // HSLtoRGB has no branch for 360
+    return Color.RGBToHex(rgb.r, rgb.g, rgb.b);
   }
-  const hslMatch = input.match(/(\d+)\s*[,\s]\s*(\d+)(%?)\s*[,\s]\s*(\d+)(%?)/);
-  if (hslMatch && (hslMatch[3] === '%' || hslMatch[5] === '%' || input.toLowerCase().includes('hsl'))) {
-    const rgb = Color.HSLtoRGB(parseInt(hslMatch[1]), parseInt(hslMatch[2]), parseInt(hslMatch[4]));
-    return Color.RGBToHex(Math.round(rgb.r), Math.round(rgb.g), Math.round(rgb.b));
-  } else if (hslMatch) {
-    const r = Math.min(255, Math.max(0, parseInt(hslMatch[1])));
-    const g = Math.min(255, Math.max(0, parseInt(hslMatch[2])));
-    const b = Math.min(255, Math.max(0, parseInt(hslMatch[4])));
-    return Color.RGBToHex(r, g, b);
-  }
-  const cleaned = input.replace(/[^0-9A-Fa-f]/g, '').slice(0, 6);
-  return cleaned.length >= 3 ? `#${cleaned}` : '#000000';
+  if (pct || [a, b, c].some((v) => v < 0 || v > 255)) return null;
+  return Color.RGBToHex(a, b, c);
 }
 
 // PaletteRow.vue 'palette.hex' watcher: 3-digit hex is expanded before generating.
@@ -224,8 +221,7 @@ export function generateSwatches(baseHex: string, lums: GrayscaleLum[], filters:
     swatches = targets.map((target, i) => {
       const diffIndex = Math.abs(closestIndex - i);
       let newH = baseHSL.h + parseFloat(String(filters.hue)) * diffIndex;
-      if (newH < 0) newH = 360 - newH;
-      if (newH > 360) newH = newH - 360;
+      if (newH < 0 || newH >= 360) newH = ((newH % 360) + 360) % 360;
       let newS = baseHSL.s + parseFloat(String(filters.sat)) * diffIndex;
       if (newS < 0) newS = Math.max(newS, 0);
       if (newS > 100) newS = Math.min(newS, 100);
