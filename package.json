@@ -13,7 +13,7 @@
     "build": "tsc",
     "start": "node dist/stdio.js",
     "start:http": "node dist/http.js",
-    "test": "node scripts/smoke.mjs"
+    "test": "tsc && node --test test/*.test.mjs && node scripts/smoke.mjs"
   },
   "engines": {
     "node": ">=20"
