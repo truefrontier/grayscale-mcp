@@ -12,8 +12,12 @@ export const VERSION = '0.1.2';
 export const REMOTE_URL = 'https://mcp.grayscale.design/mcp';
 export const TERMS_URL = 'https://github.com/truefrontier/grayscale-mcp#hosted-service';
 
+// Color strings are short. Longer ones are refused before the paste regex, which backtracks in O(n^2)
+// on a long run of spaces and would block the server.
+const colorString = z.string().max(64);
+
 const colorSchema = z.object({
-  color: z.string().describe('Base color: hex (#3b82f6, 3b82f6, #38f), rgb(59, 130, 246) or hsl(217, 91%, 60%). Parsed the way the site parses a paste.'),
+  color: colorString.describe('Base color: hex (#3b82f6, 3b82f6, #38f), rgb(59, 130, 246) or hsl(217, 91%, 60%). Parsed the way the site parses a paste.'),
   name: z.string().regex(SAFE_NAME, 'name must start with a letter and use only letters, digits, - or _ (32 characters at most)').optional().describe('Palette name used in exports (e.g. "primary", "brand-blue"): a letter, then letters, digits, - or _, 32 characters at most. Default: the site auto-names it (blue, red, ...).'),
   hue_shift: z.number().min(-50).max(50).optional().describe('Site "Tweak Hue/Sat": degrees of hue added per shade away from the base color (-50..50).'),
   sat_shift: z.number().min(-30).max(30).optional().describe('Site "Tweak Hue/Sat": saturation % added per shade away from the base color (-30..30).'),
@@ -29,7 +33,7 @@ const scaleShape = {
 const paletteShape = {
   colors: z.array(colorSchema).max(30).optional().describe('Base colors, one palette each.'),
   ...scaleShape,
-  share_url: z.string().url().optional().describe('A grayscale.design/app?... share link to load instead of colors/lums.'),
+  share_url: z.string().url().max(4096).optional().describe('A grayscale.design/app?... share link to load instead of colors/lums.'),
 };
 
 function resolveLums(a: { preset?: PresetName; count?: number; lums?: number[] }) {
@@ -154,8 +158,8 @@ export function createServer() {
       title: 'Color luminance and contrast',
       description: 'Parse a color the way the site does and return hex, rgb, hsl, oklch, its luminance (the site\'s color value, 0-100), the site\'s auto name, and WCAG contrast ratios against white, black and an optional second color.',
       inputSchema: {
-        color: z.string().describe('Hex, rgb(...) or hsl(...).'),
-        against: z.string().optional().describe('Optional second color for a contrast ratio.'),
+        color: colorString.describe('Hex, rgb(...) or hsl(...).'),
+        against: colorString.optional().describe('Optional second color for a contrast ratio.'),
       },
       annotations: ro,
     },
@@ -185,7 +189,7 @@ export function createServer() {
       title: 'Move a color to a target luminance',
       description: 'Keep a color\'s hue and saturation and find the lightness that hits a target luminance, using the site\'s solver. This is how every palette shade is made.',
       inputSchema: {
-        color: z.string().describe('Hex, rgb(...) or hsl(...).'),
+        color: colorString.describe('Hex, rgb(...) or hsl(...).'),
         lum: z.number().min(0).max(100).describe('Target luminance, 0-100.'),
       },
       annotations: ro,
@@ -205,7 +209,7 @@ export function createServer() {
     {
       title: 'Suggest companion colors',
       description: 'The site\'s suggested-color swatches: analogous (+-60), triadic (+-120) and complementary hues of a base color, all at luminance 40.',
-      inputSchema: { color: z.string().describe('Base color.') },
+      inputSchema: { color: colorString.describe('Base color.') },
       annotations: ro,
     },
     wrap((a: { color: string }) => suggestedColors(parseColorInput(a.color), [parseColorInput(a.color)])),

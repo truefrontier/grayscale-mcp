@@ -89,3 +89,31 @@ test('the JavaScript exports still parse when a name has a hyphen', async () => 
   assert.match(config, /^      'brand-blue': setAsCssVariable\('brand-blue'\),$/m);
   assert.match(config, /^      grayscale: setAsCssVariable\('grayscale'\),$/m); // plain names stay unquoted, as on the site
 });
+
+test('long color strings are refused before the color regex sees them', async () => {
+  // '1' + spaces + 'x' makes the rgb/hsl regex backtrack in O(n^2): about 1 s at 50k spaces and
+  // about 30 s at the 256 KB body limit, all of it blocking the server.
+  const slow = '1' + ' '.repeat(50_000) + 'x';
+  const calls = [
+    ['color_info', { color: slow }],
+    ['color_info', { color: '#3b82f6', against: slow }],
+    ['adjust_shade', { color: slow, lum: 40 }],
+    ['suggest_colors', { color: slow }],
+    ['generate_palette', { colors: [{ color: slow }] }],
+  ];
+  for (const [name, args] of calls) {
+    const t = performance.now();
+    const r = await call(name, args);
+    const ms = performance.now() - t;
+    assert.equal(r.isError, true, name);
+    assert.match(r.text, /at most 64 character/, name);
+    assert.ok(ms < 200, `${name} took ${ms.toFixed(0)} ms`);
+  }
+  assert.equal((await call('color_info', { color: 'hsl(217, 91%, 60%)' })).isError, false);
+});
+
+test('a share link longer than 4096 characters is refused', async () => {
+  const long = shareLink('a'.repeat(4096));
+  assert.equal((await call('generate_palette', { share_url: long })).isError, true);
+  assert.equal((await call('generate_palette', { share_url: shareLink('primary') })).isError, false);
+});
