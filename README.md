@@ -88,7 +88,7 @@ The grayscale.design and True Frontier names and logos aren't covered by this li
 ```sh
 npm install
 npm run build
-npm test                                    # stdio: calls every tool through an MCP client
+npm test                                    # builds, runs test/*.test.mjs (offline), then the stdio smoke run
 node scripts/smoke.mjs http://localhost:8080/mcp   # HTTP, after `npm run start:http`
 fly deploy                                  # remote (app: grayscale-mcp)
 ```
