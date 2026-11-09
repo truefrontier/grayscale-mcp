@@ -249,6 +249,10 @@ export function generateSwatches(baseHex: string, lums: GrayscaleLum[], filters:
 
 export type State = { lums: number[]; palettes: PaletteInput[]; radix?: boolean };
 
+// Palette names land in generated code: JS identifiers and quoted keys, CSS/SCSS/LESS/Stylus
+// variable names and SVG ids. The site takes any text, so anything outside this set gets the auto name.
+export const SAFE_NAME = /^[A-Za-z][A-Za-z0-9_-]{0,31}$/;
+
 // App.vue cssColors: the object every export is built from.
 export function buildColors(state: State) {
   const lockedIdx = new Set<number>();
@@ -282,7 +286,7 @@ export function buildColors(state: State) {
   for (const p of state.palettes) {
     const filters = { hue: p.hue ?? 0, sat: p.sat ?? 0 };
     const gen = generateSwatches(p.hex, lums, filters);
-    let name = p.name;
+    let name = p.name && SAFE_NAME.test(p.name) ? p.name : undefined;
     if (!name) {
       const closestToMid = Color.closestLum(lumsValues, 50);
       const [midIndex] = Object.keys(closestToMid);

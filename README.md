@@ -61,6 +61,12 @@ Grok Bot uses the same thing. Add a custom MCP connector with the URL `https://m
 - **Saved palettes / accounts.** The site has neither. Its only users are Statamic admins, and the share URL is how a palette gets saved, so `generate_palette` returns that URL and accepts it back as input.
 - Demo videos and the feedback link.
 
+## Safety limits (not on the site)
+
+A share link is untrusted input, and an agent may paste the export straight into a project, so:
+
+- **Palette names** must be a letter followed by letters, digits, `-` or `_`, 32 characters at most. A typed `name` outside that is an error. A share-link name outside it gets the auto name (red, blue, ...), so a link can't put code into an export.
+
 ## Site quirks kept on purpose
 
 These are replicated so the output matches the site exactly:
@@ -88,7 +94,7 @@ The grayscale.design and True Frontier names and logos aren't covered by this li
 ```sh
 npm install
 npm run build
-npm test                                    # stdio: calls every tool through an MCP client
+npm test                                    # builds, runs test/*.test.mjs (offline), then the stdio smoke run
 node scripts/smoke.mjs http://localhost:8080/mcp   # HTTP, after `npm run start:http`
 fly deploy                                  # remote (app: grayscale-mcp)
 ```

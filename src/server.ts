@@ -6,6 +6,7 @@ import {
   resizeLums, shareUrl, suggestedColors,
 } from './palette.js';
 import { ColorType, FORMATS, Format, exportText } from './exports.js';
+import { SAFE_NAME } from './palette.js';
 
 export const VERSION = '0.1.2';
 export const REMOTE_URL = 'https://mcp.grayscale.design/mcp';
@@ -13,7 +14,7 @@ export const TERMS_URL = 'https://github.com/truefrontier/grayscale-mcp#hosted-s
 
 const colorSchema = z.object({
   color: z.string().describe('Base color: hex (#3b82f6, 3b82f6, #38f), rgb(59, 130, 246) or hsl(217, 91%, 60%). Parsed the way the site parses a paste.'),
-  name: z.string().optional().describe('Palette name used in exports (e.g. "primary"). Default: the site auto-names it (blue, red, ...).'),
+  name: z.string().regex(SAFE_NAME, 'name must start with a letter and use only letters, digits, - or _ (32 characters at most)').optional().describe('Palette name used in exports (e.g. "primary", "brand-blue"): a letter, then letters, digits, - or _, 32 characters at most. Default: the site auto-names it (blue, red, ...).'),
   hue_shift: z.number().min(-50).max(50).optional().describe('Site "Tweak Hue/Sat": degrees of hue added per shade away from the base color (-50..50).'),
   sat_shift: z.number().min(-30).max(30).optional().describe('Site "Tweak Hue/Sat": saturation % added per shade away from the base color (-30..30).'),
   lock: z.boolean().optional().describe('Site lock icon: snap the nearest grayscale shade to this exact color so the base color appears unchanged in its palette (Tailwind export gets a DEFAULT key).'),
