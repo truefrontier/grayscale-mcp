@@ -4,7 +4,6 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { spawn } from 'node:child_process';
-import { createServer as netServer } from 'node:net';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createServer } from '../dist/server.js';
@@ -164,24 +163,17 @@ test('a share link longer than 4096 characters is refused', async () => {
 // --- HTTP server (dist/http.js on a free localhost port) ---
 
 const HTTP_JS = new URL('../dist/http.js', import.meta.url).pathname;
-function freePort() {
-  return new Promise((resolve, reject) => {
-    const s = netServer().once('error', reject).listen(0, '127.0.0.1', () => {
-      const { port } = s.address();
-      s.close(() => resolve(port));
-    });
-  });
-}
+// PORT=0 lets http.js bind a free port itself, so no other process can take it between a probe and the bind.
+// Resolves with that port once the server logs it.
 async function start(env = {}) {
-  const port = await freePort();
-  const childEnv = { ...process.env, PORT: String(port), ...env };
+  const childEnv = { ...process.env, PORT: '0', ...env };
   for (const k of Object.keys(childEnv)) if (childEnv[k] === undefined) delete childEnv[k];
   const child = spawn(process.execPath, [HTTP_JS], { env: childEnv, stdio: ['ignore', 'pipe', 'pipe'] });
   let stderr = '';
   child.stderr.on('data', (d) => (stderr += d));
-  await new Promise((resolve, reject) => {
+  const port = await new Promise((resolve, reject) => {
     child.once('exit', (code) => reject(new Error(`http.js exited early with code ${code}: ${stderr}`)));
-    child.stdout.on('data', (d) => d.toString().includes('listening') && resolve());
+    child.stdout.on('data', (d) => { const m = d.toString().match(/listening on :(\d+)\//); if (m) resolve(m[1]); });
   });
   return { base: `http://127.0.0.1:${port}`, child, stderr: () => stderr };
 }

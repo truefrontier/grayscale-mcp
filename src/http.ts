@@ -54,7 +54,7 @@ async function readBody(req: IncomingMessage) {
   return chunks.length ? JSON.parse(Buffer.concat(chunks).toString('utf8')) : undefined;
 }
 
-createHttpServer(async (req, res) => {
+const server = createHttpServer(async (req, res) => {
   const url = new URL(req.url ?? '/', 'http://x');
   if (req.method === 'OPTIONS') {
     res.writeHead(204, {
@@ -97,4 +97,6 @@ createHttpServer(async (req, res) => {
   } catch (e) {
     if (!res.headersSent) send(res, 400, { jsonrpc: '2.0', error: { code: -32700, message: String((e as Error).message) }, id: null });
   }
-}).listen(PORT, () => console.log(`grayscale-mcp ${VERSION} listening on :${PORT}/mcp`));
+});
+// Log the port actually bound, so PORT=0 (the tests) reports the port the OS picked.
+server.listen(PORT, () => console.log(`grayscale-mcp ${VERSION} listening on :${(server.address() as { port: number }).port}/mcp`));
