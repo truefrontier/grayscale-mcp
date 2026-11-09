@@ -68,8 +68,9 @@ A share link is untrusted input, and an agent may paste the export straight into
 - **Palette names** must be a letter followed by letters, digits, `-` or `_`, 32 characters at most. A typed `name` outside that is an error. A share-link name outside it gets the auto name (red, blue, ...), so a link can't put code into an export.
 - **The SVG export** XML-escapes every name and value it writes.
 - **Hyphenated names** (`brand-blue`, or `grayscale-alt` when a palette is named `grayscale`) stay valid JavaScript: Radix uses `const brandBlue` / `brandBlueDark` and auto-dark Tailwind quotes the key. The site writes `const brand-blue = {`, which doesn't parse.
+- **Reserved words** (`class`, `default`, `let`, `null`...) as names get a leading `_` in the Radix `const` (`const _class` / `_classDark`), and the quoted keys keep the name. No palette name starts with `_`, so this can't clash with another palette.
 - **Input sizes:** color strings are 64 characters at most and share links 4,096. A long run of spaces made the paste regex take about 30 s.
-- **Rate limit:** `RATE_LIMIT_PER_MIN` (default 120 posts per client IP per minute) falls back to 120 if it isn't a positive whole number. The client IP is Fly's `fly-client-ip` header when `FLY_APP_NAME` is set (Fly sets it), and the socket address everywhere else. `x-forwarded-for` is never read. Behind your own proxy, every client shares the proxy's bucket, so raise the limit.
+- **Rate limit:** `RATE_LIMIT_PER_MIN` (default 120 posts per client IP per minute) falls back to 120 if it isn't a positive whole number. The client IP is Fly's `fly-client-ip` header when `FLY_APP_NAME` is set (Fly sets it), and the socket address everywhere else. `x-forwarded-for` is never read. Behind your own proxy, every client shares the proxy's bucket, so raise the limit. At most 10,000 client IPs are tracked at once, and past that the oldest is dropped, so rotating IPv6 addresses can't grow the server's memory.
 
 ## Site quirks kept on purpose
 
