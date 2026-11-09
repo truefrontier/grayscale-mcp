@@ -154,6 +154,21 @@ test('long color strings are refused before the color regex sees them', async ()
   assert.equal((await call('color_info', { color: 'hsl(217, 91%, 60%)' })).isError, false);
 });
 
+test('a share link\'s colors get the same 64-character cap', async () => {
+  // A share link skips the input schema. Two runs of spaces ('+' in a query string) between numbers make
+  // the paste regex backtrack in O(n^3): about 14 s for one 4 KB link, all of it blocking the server.
+  const slow = '1' + '+'.repeat(1000) + '2' + '+'.repeat(1000) + 'x';
+  const url = `https://grayscale.design/app?lums=${LUMS}&palettes=${slow}&filters=0%7C0&names=&labels=`;
+  for (const name of ['generate_palette', 'export_palette']) {
+    const t = performance.now();
+    const r = await call(name, { share_url: url, format: 'css-vars' });
+    const ms = performance.now() - t;
+    assert.equal(r.isError, true, name);
+    assert.match(r.text, /at most 64 character/, name);
+    assert.ok(ms < 200, `${name} took ${ms.toFixed(0)} ms`);
+  }
+});
+
 test('a share link longer than 4096 characters is refused', async () => {
   const long = shareLink('a'.repeat(4096));
   assert.equal((await call('generate_palette', { share_url: long })).isError, true);

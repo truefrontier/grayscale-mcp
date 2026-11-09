@@ -12,9 +12,10 @@ export const VERSION = '0.1.2';
 export const REMOTE_URL = 'https://mcp.grayscale.design/mcp';
 export const TERMS_URL = 'https://github.com/truefrontier/grayscale-mcp#hosted-service';
 
-// Color strings are short. Longer ones are refused before the paste regex, which backtracks in O(n^2)
-// on a long run of spaces and would block the server.
-const colorString = z.string().max(64);
+// Color strings are short. Longer ones are refused before the paste regex, which backtracks badly on
+// long runs of spaces (O(n^3) with two runs) and would block the server.
+const MAX_COLOR = 64;
+const colorString = z.string().max(MAX_COLOR);
 
 const colorSchema = z.object({
   color: colorString.describe('Base color: hex (#3b82f6, 3b82f6, #38f), rgb(59, 130, 246) or hsl(217, 91%, 60%). Parsed the way the site parses a paste.'),
@@ -87,7 +88,10 @@ function contrast(l1: number, l2: number) {
 const ok = (data: unknown) => ({ content: [{ type: 'text' as const, text: typeof data === 'string' ? data : JSON.stringify(data, null, 2) }] });
 // Lowercase like the site's color picker, so a locked color matches its generated swatch (Tailwind DEFAULT).
 function parseColorInput(txt: string): string {
-  const hex = parsePaste(String(txt));
+  const s = String(txt);
+  // A share link's colors skip the input schema, so the cap is checked here too.
+  if (s.length > MAX_COLOR) throw new Error(`A color can be at most ${MAX_COLOR} characters long; this one has ${s.length}.`);
+  const hex = parsePaste(s);
   if (!hex) throw new Error(`Could not read "${txt}" as a color. Use hex (#3b82f6, 3b82f6, #38f), rgb(59, 130, 246) or hsl(217, 91%, 60%).`);
   return hex.toLowerCase();
 }
