@@ -2,6 +2,7 @@
 // generated code, and what it can do to the HTTP server. Run with `npm test` (builds dist/ first).
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import vm from 'node:vm';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createServer } from '../dist/server.js';
@@ -71,4 +72,20 @@ test('the SVG export escapes every name and value it writes into text or attribu
   assert.ok(svg.includes('style="fill: #fff&quot; onload=&quot;alert(2)"'), 'hex escaped inside the style attribute');
   // Escaping leaves plain names alone.
   assert.equal(exportText('svg', colors, { cssType: 'hex', url: '', lockedHexes: new Set() }).includes('<rect id="red-100" '), true);
+});
+
+test('the JavaScript exports still parse when a name has a hyphen', async () => {
+  // brand-blue is allowed, and a palette named grayscale becomes grayscale-alt (site rule).
+  const colors = [{ color: '#3b82f6', name: 'brand-blue' }, { color: '#ef4444', name: 'grayscale' }, { color: '#10b981', name: 'a-b-c' }];
+  for (const format of ['tailwind', 'radix', 'auto-dark-tailwind']) {
+    const r = await call('export_palette', { colors, format });
+    assert.equal(r.isError, false, r.text);
+    assert.doesNotThrow(() => new vm.Script(r.text), `${format} is not valid JavaScript:\n${r.text.slice(0, 400)}`);
+  }
+  const radix = (await call('export_palette', { colors, format: 'radix' })).text;
+  assert.match(radix, /^const brandBlue = \{\n  'brand-blue1': /m);
+  assert.match(radix, /^const grayscaleAltDark = \{\n  'grayscale-alt1': /m);
+  const config = (await call('export_palette', { colors, format: 'auto-dark-tailwind' })).text;
+  assert.match(config, /^      'brand-blue': setAsCssVariable\('brand-blue'\),$/m);
+  assert.match(config, /^      grayscale: setAsCssVariable\('grayscale'\),$/m); // plain names stay unquoted, as on the site
 });

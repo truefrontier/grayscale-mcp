@@ -20,6 +20,10 @@ export function formatSwatchColor(swatch: any, cssType: ColorType) {
 }
 
 const keys = (o: object) => Object.keys(o);
+// A palette name can hold '-' (brand-blue, or grayscale-alt from the site's own rule), which is fine in
+// CSS but not in a JS identifier or an unquoted key. These keep the JS exports parseable.
+const jsIdent = (name: string) => name.replace(/-+(.?)/g, (_, c: string) => c.toUpperCase());
+const jsKey = (name: string) => (/^[A-Za-z_$][\w$]*$/.test(name) ? name : `'${name}'`);
 const sorted = (o: object) => Object.keys(o).sort((a, b) => parseInt(a) - parseInt(b));
 
 export function exportText(format: Format, colors: Record<string, any>, opts: { cssType: ColorType; url: string; lockedHexes: Set<string> }): string {
@@ -45,12 +49,12 @@ export function exportText(format: Format, colors: Record<string, any>, opts: { 
       let js = `// Grayscale Design palette: ${url}\n`;
       try {
         js += keys(colors).reduce((str, name) => {
-          str += `\nconst ${name} = {\n`;
+          str += `\nconst ${jsIdent(name)} = {\n`;
           keys(colors[name].swatches).forEach((i) => {
             str += `  '${name}${parseInt(i, 10) + 1}': '${fmt(colors[name].swatches[i])}',\n`;
           });
           str += '};\n';
-          str += `\nconst ${name}Dark = {\n`;
+          str += `\nconst ${jsIdent(name)}Dark = {\n`;
           keys(colors[name].swatches).forEach((i) => {
             const sw = colors[name].swatches[i];
             const lum = 100 - sw.lum;
@@ -204,7 +208,7 @@ function autoDarkConfig(colors: Record<string, any>) {
   config += `      light: 'rgb(var(--light) / <alpha-value>)',\n`;
   config += `      dark: 'rgb(var(--dark) / <alpha-value>)',\n`;
   keys(colors).forEach((name) => {
-    config += `      ${name}: setAsCssVariable('${name}'),\n`;
+    config += `      ${jsKey(name)}: setAsCssVariable('${name}'),\n`;
   });
   config += `      neutral: setAsCssVariable('neutral'),\n`;
   config += `    },\n`;

@@ -67,6 +67,7 @@ A share link is untrusted input, and an agent may paste the export straight into
 
 - **Palette names** must be a letter followed by letters, digits, `-` or `_`, 32 characters at most. A typed `name` outside that is an error. A share-link name outside it gets the auto name (red, blue, ...), so a link can't put code into an export.
 - **The SVG export** XML-escapes every name and value it writes.
+- **Hyphenated names** (`brand-blue`, or `grayscale-alt` when a palette is named `grayscale`) stay valid JavaScript: Radix uses `const brandBlue` / `brandBlueDark` and auto-dark Tailwind quotes the key. The site writes `const brand-blue = {`, which doesn't parse.
 
 ## Site quirks kept on purpose
 
