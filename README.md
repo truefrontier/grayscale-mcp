@@ -6,7 +6,7 @@ The math is the site's own code. `src/site/color.js` is an unedited copy of the 
 
 The server is read-only. It needs no account and no secrets, stores nothing, and never calls grayscale.design.
 
-**Remote endpoint:** `https://mcp.grayscale.design/mcp` (Streamable HTTP, stateless, no auth, 120 requests a minute per IP). `https://grayscale-mcp.fly.dev/mcp` serves the same app. Use of the hosted endpoint is covered by [Hosted service](#hosted-service).
+**Remote endpoint:** `https://mcp.grayscale.design/mcp` (Streamable HTTP, stateless, no auth, 120 requests a minute per IPv4 address or IPv6 /64). `https://grayscale-mcp.fly.dev/mcp` serves the same app. Use of the hosted endpoint is covered by [Hosted service](#hosted-service).
 
 ## Install
 
@@ -88,7 +88,7 @@ The endpoint at `https://mcp.grayscale.design/mcp` (and `https://grayscale-mcp.f
 
 **Acceptable use.** Don't abuse or overload the service, don't try to get around the rate limit, and don't use it for anything illegal. We may block traffic that does.
 
-**Data.** The server doesn't need an account, stores nothing you send, and doesn't write request or IP logs. To enforce the rate limit it keeps each client IP address in memory for about a minute, then drops it. The service is hosted on [Fly.io](https://fly.io), which routes the traffic and handles it under its own [privacy policy](https://fly.io/legal/privacy-policy). We don't sell any data.
+**Data.** The server doesn't need an account, stores nothing you send, and doesn't write request or IP logs. To enforce the rate limit it keeps each client's IPv4 address, or the first half of its IPv6 address (the /64), in memory for about a minute, then drops it. The service is hosted on [Fly.io](https://fly.io), which routes the traffic and handles it under its own [privacy policy](https://fly.io/legal/privacy-policy). We don't sell any data.
 
 ## License
 
