@@ -69,6 +69,7 @@ A share link is untrusted input, and an agent may paste the export straight into
 - **The SVG export** XML-escapes every name and value it writes.
 - **Hyphenated names** (`brand-blue`, or `grayscale-alt` when a palette is named `grayscale`) stay valid JavaScript: Radix uses `const brandBlue` / `brandBlueDark` and auto-dark Tailwind quotes the key. The site writes `const brand-blue = {`, which doesn't parse.
 - **Input sizes:** color strings are 64 characters at most and share links 4,096. A long run of spaces made the paste regex take about 30 s.
+- **Rate limit:** `RATE_LIMIT_PER_MIN` (default 120 posts per client IP per minute) falls back to 120 if it isn't a positive whole number. The client IP is Fly's `fly-client-ip` header when `FLY_APP_NAME` is set (Fly sets it), and the socket address everywhere else. `x-forwarded-for` is never read. Behind your own proxy, every client shares the proxy's bucket, so raise the limit.
 
 ## Site quirks kept on purpose
 
