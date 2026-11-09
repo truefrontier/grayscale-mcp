@@ -61,6 +61,16 @@ Grok Bot uses the same thing. Add a custom MCP connector with the URL `https://m
 - **Saved palettes / accounts.** The site has neither. Its only users are Statamic admins, and the share URL is how a palette gets saved, so `generate_palette` returns that URL and accepts it back as input.
 - Demo videos and the feedback link.
 
+## Safety limits (not on the site)
+
+A share link is untrusted input, and an agent may paste the export straight into a project, so:
+
+- **Palette names** must be a letter followed by letters, digits, `-` or `_`, 32 characters at most. A typed `name` outside that is an error. A share-link name outside it gets the auto name (red, blue, ...), so a link can't put code into an export.
+- **The SVG export** XML-escapes every name and value it writes.
+- **Hyphenated names** (`brand-blue`, or `grayscale-alt` when a palette is named `grayscale`) stay valid JavaScript: Radix uses `const brandBlue` / `brandBlueDark` and auto-dark Tailwind quotes the key. The site writes `const brand-blue = {`, which doesn't parse.
+- **Input sizes:** color strings are 64 characters at most and share links 4,096. A long run of spaces made the paste regex take about 30 s.
+- **Rate limit:** `RATE_LIMIT_PER_MIN` (default 120 posts per client IP per minute) falls back to 120 if it isn't a positive whole number. The client IP is Fly's `fly-client-ip` header when `FLY_APP_NAME` is set (Fly sets it), and the socket address everywhere else. `x-forwarded-for` is never read. Behind your own proxy, every client shares the proxy's bucket, so raise the limit.
+
 ## Site quirks kept on purpose
 
 These are replicated so the output matches the site exactly:
