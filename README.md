@@ -108,6 +108,8 @@ node scripts/smoke.mjs http://localhost:8080/mcp   # HTTP, after `npm run start:
 fly deploy                                  # remote (app: grayscale-mcp)
 ```
 
+[docs/maintaining.md](docs/maintaining.md) says what each test checks, and how to check that the code copied from grayscale.design is still in step with the site.
+
 ## Verification
 
 Seven palettes (one color, three colors, presets, hue/sat tweaks, lock, 7 custom shades) were loaded in headless Chrome from the live grayscale.design share links. The site's own export computeds were compared with this server's output: 8 export tabs × 4 color types, plus `/export-svgs`.
