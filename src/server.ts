@@ -237,10 +237,10 @@ export function createServer() {
     'false_color',
     {
       title: 'False color from a gray',
-      description: 'The site\'s /false-color tool: pick a gray (0-255) or a luminance, then get a color of any hue and saturation with that same luminance.',
+      description: 'The site\'s /false-color tool: pick a gray (0-255) or a luminance, then get a color of any hue and saturation with the gray\'s luminance.',
       inputSchema: {
         gray: z.number().int().min(0).max(255).optional().describe('Gray channel value 0-255 (site default 200).'),
-        lum: z.number().min(0).max(100).optional().describe('Or a luminance 0-100 instead of gray.'),
+        lum: z.number().min(0).max(100).optional().describe("Or a luminance 0-100 instead of gray. Like the site's luminance box, this sets the gray to the red channel of a teal at that luminance, so the luminance actually used is usually lower (lum 50 gives 12.74). Read gray.lum for it. To hit a luminance exactly, use adjust_shade."),
         hue: z.number().min(0).max(359).optional().describe('Hue 0-359 (site default 180).'),
         sat: z.number().min(0).max(100).optional().describe('Saturation 0-100 (site default 50).'),
       },
