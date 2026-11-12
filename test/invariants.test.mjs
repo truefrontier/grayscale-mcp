@@ -257,3 +257,15 @@ test('suggest_colors: five suggestions, each at luminance 40 within 0.5, in the 
     }
   }
 });
+
+test('with the default, Tailwind or Radix preset, the share link opens exactly the palette generate_palette returned', async () => {
+  // Those presets' targets have at most 2 decimals, so the link's rounding loses nothing.
+  const r = rng(21);
+  for (let i = 0; i < 20; i++) {
+    const { colors } = paletteArgs(r);
+    const preset = [undefined, 'default', 'tailwind', 'radix'][i % 4];
+    const a = await json('generate_palette', { colors, ...(preset ? { preset } : {}) });
+    const b = await json('generate_palette', { share_url: a.share_url });
+    assert.deepEqual(b, a, `${preset} ${JSON.stringify(colors)}`);
+  }
+});

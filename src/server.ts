@@ -114,7 +114,7 @@ export function createServer() {
     'generate_palette',
     {
       title: 'Generate luminance-based palettes',
-      description: 'Generate a grayscale luminance scale plus one palette per base color, exactly as grayscale.design/app does. Each shade matches the grayscale shade\'s luminance while keeping the base hue and saturation. Returns every swatch (label, hex, rgb, hsl, oklch, luminance) and a share link that opens the same palette on the site.',
+      description: 'Generate a grayscale luminance scale plus one palette per base color, exactly as grayscale.design/app does. Each shade matches the grayscale shade\'s luminance while keeping the base hue and saturation. Returns every swatch (label, hex, rgb, hsl, oklch, luminance) and a share link that opens it on the site. Like the site\'s, the link keeps luminance targets to 2 decimals, so with the bell, linear, dark or light presets, added shades or a lock, a shade can open 1-2 RGB units off.',
       inputSchema: paletteShape,
       annotations: ro,
     },
