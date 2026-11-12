@@ -21,7 +21,7 @@ const colorSchema = z.object({
   name: z.string().regex(SAFE_NAME, 'name must start with a letter and use only letters, digits, - or _ (32 characters at most)').optional().describe('Palette name used in exports (e.g. "primary", "brand-blue"): a letter, then letters, digits, - or _, 32 characters at most. Default: the site auto-names it (blue, red, ...).'),
   hue_shift: z.number().min(-50).max(50).optional().describe('Site "Tweak Hue/Sat": degrees of hue added per shade away from the base color (-50..50).'),
   sat_shift: z.number().min(-30).max(30).optional().describe('Site "Tweak Hue/Sat": saturation % added per shade away from the base color (-30..30).'),
-  lock: z.boolean().optional().describe('Site lock icon: snap the nearest grayscale shade to this exact color so the base color appears unchanged in its palette (Tailwind export gets a DEFAULT key).'),
+  lock: z.boolean().optional().describe("Site lock icon: the nearest grayscale shade takes this color's luminance, so the base color lands in its own palette. Like the site, that shade is rebuilt from rounded HSL, so about 1 color in 4 comes back slightly off (usually 1 RGB unit; #06fcff comes back #2dfbff). Only an exact match gets the Tailwind DEFAULT key."),
 });
 
 const scaleShape = {

@@ -79,6 +79,7 @@ These are replicated so the output matches the site exactly:
 - With Radix + OKLCH, the export stops after the header (the site throws inside a try/catch).
 - Stylus shade labels are 100, 200, 300… whatever the count (the site passes a boolean as the count).
 - When a share link has an unnamed palette before a named one, the site moves the name onto the wrong palette on load. `generate_palette({ share_url })` does the same.
+- A locked color doesn't always come back exactly. The locked shade takes the color's luminance, but the site rebuilds the shade from the color's rounded HSL (a whole-degree hue, one-decimal saturation), so it can land on a different hex. When it does, the Tailwind export has no `DEFAULT` key. With the default scale, 748 of 1,000 random colors came back exact, and most misses were 1 off in one channel. The worst was `#06fcff`, which comes back as `#2dfbff`.
 - `false_color({ lum })` sets the gray the way the site's luminance box does: it takes the red channel of a teal at that luminance. So the gray's own luminance can differ from the one you passed (`lum: 50` gives gray 100, luminance 12.74). Read `gray.lum` for the value actually used.
 
 One site behavior is not kept: when two colors end up with the same palette name (two auto-named blues, say), the site's exports keep only the last one. `generate_palette` and `export_palette` return an error asking for a distinct name per color instead.

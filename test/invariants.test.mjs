@@ -1,5 +1,5 @@
 // The tools make promises in their descriptions: every shade has the grayscale shade's luminance, a
-// share link opens the same palette, a locked color appears unchanged in its palette, adjust_shade keeps
+// share link opens the same palette, a locked color lands in its own palette, adjust_shade keeps
 // hue and saturation. These tests check those promises on seeded random inputs, through the same
 // in-memory MCP client as tools.test.mjs. The seed is fixed, so every run checks the same inputs;
 // a failure message names the input that broke.
