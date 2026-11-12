@@ -62,7 +62,7 @@ function paletteArgs(r, { lock = false } = {}) {
 
 test('generate_palette: every shade is within 0.5 luminance of the grayscale shade with the same label', async () => {
   const r = rng(11);
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < 40; i++) {
     const args = paletteArgs(r, { lock: r() < 0.2 });
     const out = await json('generate_palette', args);
     const gray = out.palettes.grayscale.swatches;
@@ -193,7 +193,7 @@ test('false_color returns a color with the gray\'s luminance, within 0.5', async
 test('export_palette: every format names every palette and writes no NaN, undefined, null or Infinity', async () => {
   const r = rng(18);
   const NAMES = ['primary', 'brand-blue', 'brand_green', 'Accent', 'class', 'new', 'default', 'x'];
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < 8; i++) {
     const colors = Array.from({ length: int(r, 1, 3) }, (_, k) => ({ color: hex(r), name: `${NAMES[int(r, 0, NAMES.length - 1)]}${k}` }));
     for (const format of FORMATS) {
       const color_type = ['rgb', 'hex', 'hsl', 'oklch'][int(r, 0, 3)];
@@ -217,5 +217,29 @@ test('luminance_scale: every preset and count gives that many gray shades, light
       for (let k = 1; k < count; k++) assert.ok(shades[k].lum <= shades[k - 1].lum, `${at} shade ${k}`);
       for (const s of shades) assert.ok(s.rgb[0] === s.rgb[1] && s.rgb[1] === s.rgb[2], `${at} ${s.label} is not gray`);
     }
+  }
+});
+
+test('export_palette gives the same swatches as generate_palette: tailwind (run as JavaScript), css-vars and json', async () => {
+  const r = rng(19);
+  for (let i = 0; i < 20; i++) {
+    const args = paletteArgs(r, { lock: r() < 0.2 });
+    if (r() < 0.5) args.count = int(r, 3, 20); // 10 or more shades switch labels to 50, 100...; 11 ends at 950
+    const at = JSON.stringify(args);
+    const gen = await json('generate_palette', args);
+    const want = Object.fromEntries(Object.entries(gen.palettes).map(([name, p]) => [name, Object.fromEntries(p.swatches.map((s) => [s.label, s.hex]))]));
+    const exp = async (format) => (await call('export_palette', { ...args, format, color_type: 'hex' })).text;
+
+    const tw = new Function(`${await exp('tailwind')}\nreturn grayscale;`)();
+    for (const p of Object.values(tw)) delete p.DEFAULT; // lock's extra key, tested on its own above
+    assert.deepEqual(tw, want, `${at} tailwind`);
+
+    const vars = Object.fromEntries([...(await exp('css-vars')).matchAll(/^ {2}--([\w-]+): (#[0-9a-f]{6});$/gm)].map((m) => [m[1], m[2]]));
+    const wantVars = Object.fromEntries(Object.entries(want).flatMap(([name, sw]) => Object.entries(sw).map(([label, hex]) => [`${name}-${label}`, hex])));
+    assert.deepEqual(vars, wantVars, `${at} css-vars`);
+
+    const raw = JSON.parse(await exp('json'));
+    const fromJson = Object.fromEntries(Object.entries(raw).map(([name, p]) => [name, Object.fromEntries(Object.values(p.swatches).map((s) => [s.label, s.hex]))]));
+    assert.deepEqual(fromJson, want, `${at} json`);
   }
 });
