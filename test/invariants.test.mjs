@@ -243,3 +243,17 @@ test('export_palette gives the same swatches as generate_palette: tailwind (run 
     assert.deepEqual(fromJson, want, `${at} json`);
   }
 });
+
+test('suggest_colors: five suggestions, each at luminance 40 within 0.5, in the roles the description names', async () => {
+  const r = rng(20);
+  for (let i = 0; i < 100; i++) {
+    const color = hex(r);
+    if (color === '#000000') continue; // black gets none, tested in tools.test.mjs
+    const out = await json('suggest_colors', { color });
+    assert.deepEqual(out.map((s) => s.role), ['analogous -60', 'triadic -120', 'complementary', 'triadic +120', 'analogous +60'], color);
+    for (const s of out) {
+      const { lum } = await json('color_info', { color: s.hex });
+      assert.ok(Math.abs(lum - 40) <= LUM_TOLERANCE, `${color} ${s.role}: ${s.hex} at ${lum}`);
+    }
+  }
+});
