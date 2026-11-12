@@ -55,17 +55,22 @@ test('GET / describes the server and lists the same tools the MCP endpoint serve
   }
 });
 
-test('unknown paths are 404', async () => {
-  const r = await fetch(srv.base + '/nope');
-  assert.equal(r.status, 404);
-  assert.deepEqual(await r.json(), { error: 'not found' });
+test('unknown paths are 404, whatever the method', async () => {
+  for (const [method, path] of [['GET', '/nope'], ['POST', '/nope'], ['GET', '/mcp/']]) {
+    const r = await fetch(srv.base + path, { method });
+    assert.equal(r.status, 404, `${method} ${path}`);
+    assert.equal(r.headers.get('access-control-allow-origin'), '*');
+    assert.deepEqual(await r.json(), { error: 'not found' });
+  }
 });
 
-test('GET /mcp is 405 with Allow: POST (stateless, no SSE stream)', async () => {
-  const r = await fetch(srv.base + '/mcp');
-  assert.equal(r.status, 405);
-  assert.equal(r.headers.get('allow'), 'POST');
-  assert.deepEqual(await r.json(), { jsonrpc: '2.0', error: { code: -32000, message: 'Method not allowed. POST JSON-RPC to /mcp.' }, id: null });
+test('GET and DELETE /mcp are 405 with Allow: POST (stateless, no SSE stream or session)', async () => {
+  for (const method of ['GET', 'DELETE']) {
+    const r = await fetch(srv.base + '/mcp', { method });
+    assert.equal(r.status, 405, method);
+    assert.equal(r.headers.get('allow'), 'POST');
+    assert.deepEqual(await r.json(), { jsonrpc: '2.0', error: { code: -32000, message: 'Method not allowed. POST JSON-RPC to /mcp.' }, id: null });
+  }
 });
 
 test('OPTIONS answers the CORS preflight', async () => {
@@ -104,4 +109,16 @@ test('the rate limit returns 429 after RATE_LIMIT_PER_MIN posts from one client 
   } finally {
     limited.child.kill();
   }
+});
+
+test('the default rate limit is the 120 a minute the README promises', async () => {
+  const fly = await start({ FLY_APP_NAME: 'grayscale-mcp' }); // its own server, so other tests' posts don't count
+  try {
+    const hit = () => fetch(fly.base + '/mcp', { method: 'POST', headers: { 'fly-client-ip': '203.0.113.120' }, body: '{' }).then((r) => r.status);
+    for (let i = 1; i <= 120; i++) assert.equal(await hit(), 400, `post ${i}`);
+    assert.equal(await hit(), 429);
+  } finally {
+    fly.child.kill();
+  }
+  assert.match(readFileSync(new URL('../README.md', import.meta.url), 'utf8'), /no auth, 120 requests a minute per IPv4 address or IPv6 \/64/);
 });
