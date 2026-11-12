@@ -47,7 +47,7 @@ Grok Bot uses the same thing. Add a custom MCP connector with the URL `https://m
 
 | Tool | What it does | Site feature |
 | --- | --- | --- |
-| `generate_palette` | Builds the grayscale scale plus one palette per base color. Each base color can have a name, a hue/saturation tweak and a lock. Takes a preset, a shade count (3–20), custom luminance targets, or a grayscale.design share link. Returns every swatch, auto names, suggested colors and a share link that opens the same palette on the site. | Steps 1–2, Hue/Sat Tweak, Lock, auto naming, share URL |
+| `generate_palette` | Builds the grayscale scale plus one palette per base color. Each base color can have a name, a hue/saturation tweak and a lock. Takes a preset, a shade count (3–20), custom luminance targets, or a grayscale.design share link. Returns every swatch, auto names, suggested colors and a share link that opens it on the site (see the quirks below for when a shade can move). | Steps 1–2, Hue/Sat Tweak, Lock, auto naming, share URL |
 | `export_palette` | Same inputs, plus `format`: `tailwind`, `radix`, `css-vars`, `scss`, `less`, `stylus`, `auto-dark-css`, `auto-dark-tailwind`, `svg` or `json`, and `color_type`: `rgb`, `hex`, `hsl` or `oklch`. | Export Your Colors, Tailwind Auto-Dark Mode, Export Svgs |
 | `luminance_scale` | The luminance targets, labels and grays for a preset (`default`, `tailwind`, `radix`, `bell`, `linear`, `dark`, `light`), a shade count, or custom targets. | Step 1 presets, shade count, sliders |
 | `color_info` | Parses hex, rgb or hsl the way the site's paste box does. Returns hex/rgb/hsl/oklch, luminance, the site's color name, and WCAG contrast. | Paste parsing, color naming, Text Overlay |
@@ -79,6 +79,8 @@ These are replicated so the output matches the site exactly:
 - With Radix + OKLCH, the export stops after the header (the site throws inside a try/catch).
 - Stylus shade labels are 100, 200, 300… whatever the count (the site passes a boolean as the count).
 - When a share link has an unnamed palette before a named one, the site moves the name onto the wrong palette on load. `generate_palette({ share_url })` does the same.
+- A share link stores each luminance target to 2 decimals, as the site's does. With the default, Tailwind or Radix preset nothing is lost, and the link opens exactly the palette `generate_palette` returned. The bell, linear, dark and light presets, added shades (each one halves the last target) and a lock can make targets with more decimals, and then a shade can open 1 or 2 RGB units off. In 60 random palettes each, bell never came back exact, and linear 42, dark 44, light 52, added shades 34 and a lock 56 did.
+- A locked color doesn't always come back exactly. The locked shade takes the color's luminance, but the site rebuilds the shade from the color's rounded HSL (a whole-degree hue, one-decimal saturation), so it can land on a different hex. When it does, the Tailwind export has no `DEFAULT` key. With the default scale, 748 of 1,000 random colors came back exact, and most misses were 1 off in one channel. The worst was `#06fcff`, which comes back as `#2dfbff`.
 - `false_color({ lum })` sets the gray the way the site's luminance box does: it takes the red channel of a teal at that luminance. So the gray's own luminance can differ from the one you passed (`lum: 50` gives gray 100, luminance 12.74). Read `gray.lum` for the value actually used.
 
 One site behavior is not kept: when two colors end up with the same palette name (two auto-named blues, say), the site's exports keep only the last one. `generate_palette` and `export_palette` return an error asking for a distinct name per color instead.
@@ -106,6 +108,8 @@ npm test                                    # builds, runs test/*.test.mjs (offl
 node scripts/smoke.mjs http://localhost:8080/mcp   # HTTP, after `npm run start:http`
 fly deploy                                  # remote (app: grayscale-mcp)
 ```
+
+[docs/maintaining.md](docs/maintaining.md) says what each test checks, and how to check that the code copied from grayscale.design is still in step with the site.
 
 ## Verification
 

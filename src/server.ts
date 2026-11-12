@@ -21,7 +21,7 @@ const colorSchema = z.object({
   name: z.string().regex(SAFE_NAME, 'name must start with a letter and use only letters, digits, - or _ (32 characters at most)').optional().describe('Palette name used in exports (e.g. "primary", "brand-blue"): a letter, then letters, digits, - or _, 32 characters at most. Default: the site auto-names it (blue, red, ...).'),
   hue_shift: z.number().min(-50).max(50).optional().describe('Site "Tweak Hue/Sat": degrees of hue added per shade away from the base color (-50..50).'),
   sat_shift: z.number().min(-30).max(30).optional().describe('Site "Tweak Hue/Sat": saturation % added per shade away from the base color (-30..30).'),
-  lock: z.boolean().optional().describe('Site lock icon: snap the nearest grayscale shade to this exact color so the base color appears unchanged in its palette (Tailwind export gets a DEFAULT key).'),
+  lock: z.boolean().optional().describe("Site lock icon: the nearest grayscale shade takes this color's luminance, so the base color lands in its own palette. Like the site, that shade is rebuilt from rounded HSL, so about 1 color in 4 comes back slightly off (usually 1 RGB unit; #06fcff comes back #2dfbff). Only an exact match gets the Tailwind DEFAULT key."),
 });
 
 const scaleShape = {
@@ -114,7 +114,7 @@ export function createServer() {
     'generate_palette',
     {
       title: 'Generate luminance-based palettes',
-      description: 'Generate a grayscale luminance scale plus one palette per base color, exactly as grayscale.design/app does. Each shade matches the grayscale shade\'s luminance while keeping the base hue and saturation. Returns every swatch (label, hex, rgb, hsl, oklch, luminance) and a share link that opens the same palette on the site.',
+      description: 'Generate a grayscale luminance scale plus one palette per base color, exactly as grayscale.design/app does. Each shade matches the grayscale shade\'s luminance while keeping the base hue and saturation. Returns every swatch (label, hex, rgb, hsl, oklch, luminance) and a share link that opens it on the site. Like the site\'s, the link keeps luminance targets to 2 decimals, so with the bell, linear, dark or light presets, added shades or a lock, a shade can open 1-2 RGB units off.',
       inputSchema: paletteShape,
       annotations: ro,
     },
@@ -139,7 +139,7 @@ export function createServer() {
       inputSchema: {
         ...paletteShape,
         format: z.enum(FORMATS).describe('Output format.'),
-        color_type: z.enum(['rgb', 'hex', 'hsl', 'oklch']).optional().describe('Color notation for tailwind/radix/css-vars/scss/less/stylus. Site default: rgb.'),
+        color_type: z.enum(['rgb', 'hex', 'hsl', 'oklch']).optional().describe('Color notation for tailwind/radix/css-vars/scss/less/stylus. Site default: rgb. Radix with oklch returns only the header comment, as on the site, so pick another notation for Radix.'),
       },
       annotations: ro,
     },
@@ -237,10 +237,10 @@ export function createServer() {
     'false_color',
     {
       title: 'False color from a gray',
-      description: 'The site\'s /false-color tool: pick a gray (0-255) or a luminance, then get a color of any hue and saturation with that same luminance.',
+      description: 'The site\'s /false-color tool: pick a gray (0-255) or a luminance, then get a color of any hue and saturation with the gray\'s luminance.',
       inputSchema: {
         gray: z.number().int().min(0).max(255).optional().describe('Gray channel value 0-255 (site default 200).'),
-        lum: z.number().min(0).max(100).optional().describe('Or a luminance 0-100 instead of gray.'),
+        lum: z.number().min(0).max(100).optional().describe("Or a luminance 0-100 instead of gray. Like the site's luminance box, this sets the gray to the red channel of a teal at that luminance, so the luminance actually used is usually lower (lum 50 gives 12.74). Read gray.lum for it. To hit a luminance exactly, use adjust_shade."),
         hue: z.number().min(0).max(359).optional().describe('Hue 0-359 (site default 180).'),
         sat: z.number().min(0).max(100).optional().describe('Saturation 0-100 (site default 50).'),
       },
