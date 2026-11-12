@@ -139,7 +139,7 @@ export function createServer() {
       inputSchema: {
         ...paletteShape,
         format: z.enum(FORMATS).describe('Output format.'),
-        color_type: z.enum(['rgb', 'hex', 'hsl', 'oklch']).optional().describe('Color notation for tailwind/radix/css-vars/scss/less/stylus. Site default: rgb.'),
+        color_type: z.enum(['rgb', 'hex', 'hsl', 'oklch']).optional().describe('Color notation for tailwind/radix/css-vars/scss/less/stylus. Site default: rgb. Radix with oklch returns only the header comment, as on the site, so pick another notation for Radix.'),
       },
       annotations: ro,
     },
